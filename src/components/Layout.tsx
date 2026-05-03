@@ -3,7 +3,7 @@ import { Sun, Moon, LogOut } from 'lucide-react'
 import { useStore } from '../store/app'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 const TABS = [
   { to: '/timer',     label: '⏱ Timer' },
@@ -17,10 +17,19 @@ const TABS = [
 export default function Layout() {
   const { theme, toggleTheme } = useStore()
   const navigate = useNavigate()
+  const [userEmail, setUserEmail] = useState('')
 
   useEffect(() => {
     document.documentElement.classList.toggle('light', theme === 'light')
   }, [theme])
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? ''))
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUserEmail(session?.user?.email ?? '')
+    })
+    return () => subscription.unsubscribe()
+  }, [])
 
   const date = new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })
 
@@ -49,6 +58,19 @@ export default function Layout() {
         </div>
 
         <div className="flex items-center gap-2 ml-3 shrink-0">
+          {userEmail && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md shrink-0"
+              style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}>
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                style={{ background: '#4F7CFF33', color: '#4F7CFF' }}>
+                {userEmail[0].toUpperCase()}
+              </div>
+              <span className="text-xs font-medium max-w-[90px] truncate" style={{ color: 'var(--text2)' }}>
+                {userEmail.split('@')[0]}
+              </span>
+            </div>
+          )}
+
           <button onClick={toggleTheme}
             className="w-8 h-8 flex items-center justify-center rounded-lg transition-all"
             style={{ background: 'var(--surface2)', border: '1px solid var(--border)' }}
