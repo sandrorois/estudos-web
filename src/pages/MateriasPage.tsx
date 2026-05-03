@@ -1,0 +1,1 @@
+export default function MateriasPage(){ return <div className='pt-6'><h1 className='font-serif text-2xl mb-2' style={{color:'var(--text)'}}>MateriasPage</h1><p style={{color:'var(--text3)'}}>Em construção.</p></div> }
