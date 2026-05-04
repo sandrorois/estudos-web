@@ -27,6 +27,9 @@ export interface Materia {
 export interface SlotSemana {
   id: number
   dia: DiaSemana
+  date?: string         // YYYY-MM-DD — set for date-specific or recurring-from-date
+  recorrente?: boolean  // true = repeats weekly (requires date)
+  exceptions?: string[] // dates where a recurring slot is skipped
   tipo: TipoBloco
   matId: number | null
   cttId: number | null
