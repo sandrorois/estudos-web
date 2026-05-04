@@ -32,9 +32,35 @@ export default function MateriasPage() {
   const [cttForm, setCttForm] = useState({ matId: '', catalogoSel: '', nome: '', metaH: 0, questoes: false, status: 0 as StatusConteudo })
 
   const pfx = monthPfx(monthDate)
+  const currentPfx = monthPfx(new Date())
+  const isCurrentMonth = pfx === currentPfx
 
   function prevMonth() { const d = new Date(monthDate); d.setMonth(d.getMonth() - 1); setMonthDate(d) }
   function nextMonth() { const d = new Date(monthDate); d.setMonth(d.getMonth() + 1); setMonthDate(d) }
+
+  // Matérias do mês: month-specific + legacy (sem month) apenas no mês atual
+  const monthMaterias = materias.filter(m => m.month === pfx || (isCurrentMonth && !m.month))
+
+  // Matérias do mês anterior (para copiar)
+  const prevDate = new Date(monthDate.getFullYear(), monthDate.getMonth() - 1, 1)
+  const prevPfx = monthPfx(prevDate)
+  const prevMonthMaterias = materias.filter(m => m.month === prevPfx)
+
+  function copyFromPrevMonth() {
+    if (prevMonthMaterias.length === 0) return
+    prevMonthMaterias.forEach((mat, i) => {
+      const newId = Date.now() + i
+      addMateria({
+        id: newId,
+        nome: mat.nome,
+        tipo: mat.tipo,
+        prioridade: mat.prioridade,
+        month: pfx,
+        conteudos: mat.conteudos.map((c, j) => ({ ...c, id: newId * 100 + j, status: 0 as StatusConteudo })),
+      })
+    })
+    setNotif(`${prevMonthMaterias.length} matéria(s) copiada(s) de ${MESES_PT[prevDate.getMonth()]}!`)
+  }
 
   function openNewMat() { setEditMatId(null); setMatForm({ nome: '', tipo: 'base', prioridade: 'media' }); setShowMat(true) }
   function openEditMat(m: Materia) { setEditMatId(m.id); setMatForm({ nome: m.nome, tipo: m.tipo, prioridade: m.prioridade }); setShowMat(true) }
@@ -44,7 +70,7 @@ export default function MateriasPage() {
       updateMateria(editMatId, matForm)
       setNotif('Matéria atualizada!')
     } else {
-      addMateria({ id: Date.now(), nome: matForm.nome.trim(), tipo: matForm.tipo, prioridade: matForm.prioridade, conteudos: [] })
+      addMateria({ id: Date.now(), nome: matForm.nome.trim(), tipo: matForm.tipo, prioridade: matForm.prioridade, month: pfx, conteudos: [] })
       setNotif('Matéria adicionada!')
     }
     setShowMat(false)
@@ -83,7 +109,7 @@ export default function MateriasPage() {
       {notif && <Notif msg={notif} onDone={() => setNotif('')} />}
 
       <SectionHeader title="Matérias"
-        sub="Catálogo de matérias e conteúdos"
+        sub={`Plano de estudos — ${MESES_PT[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
         right={
           <>
             <div className="flex items-center gap-1">
@@ -93,14 +119,26 @@ export default function MateriasPage() {
               </span>
               <Btn size="icon" variant="ghost" onClick={nextMonth}>›</Btn>
             </div>
+            {prevMonthMaterias.length > 0 && (
+              <Btn size="sm" variant="ghost" onClick={copyFromPrevMonth}>
+                ⎘ Copiar de {MESES_PT[prevDate.getMonth()]}
+              </Btn>
+            )}
             <Btn variant="primary" size="sm" onClick={openNewMat}>+ Nova Matéria</Btn>
           </>
         }
       />
 
-      {materias.length === 0 && <Empty>Nenhuma matéria cadastrada.</Empty>}
+      {monthMaterias.length === 0 && (
+        <Empty>
+          Nenhuma matéria para {MESES_PT[monthDate.getMonth()]}.
+          {prevMonthMaterias.length > 0
+            ? ` Clique em "Copiar de ${MESES_PT[prevDate.getMonth()]}" para importar o plano anterior.`
+            : ' Clique em "+ Nova Matéria" para começar.'}
+        </Empty>
+      )}
 
-      {materias.map(mat => {
+      {monthMaterias.map(mat => {
         const isOpen = expanded[mat.id]
         const doneMin = matDoneMin(mat)
         const metaH = matMetaH(mat)
@@ -109,7 +147,6 @@ export default function MateriasPage() {
 
         return (
           <Card key={mat.id} className="overflow-hidden">
-            {/* Header */}
             <div className="flex items-center gap-3 cursor-pointer select-none"
               onClick={() => setExpanded(e => ({ ...e, [mat.id]: !e[mat.id] }))}>
               <span className="text-xs font-mono w-5 text-center" style={{ color: 'var(--text3)' }}>{isOpen ? '▾' : '▸'}</span>
@@ -125,7 +162,6 @@ export default function MateriasPage() {
               <Btn size="sm" variant="ghost" onClick={e => { e.stopPropagation(); openNewCtt(mat.id) }}>+ Conteúdo</Btn>
             </div>
 
-            {/* Conteúdos */}
             {isOpen && (
               <div className="mt-4 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
                 {mat.conteudos.length === 0
@@ -215,11 +251,11 @@ export default function MateriasPage() {
           <FG label="Matéria">
             <Select value={cttForm.matId} onChange={e => setCttForm(f => ({ ...f, matId: e.target.value, catalogoSel: '' }))}>
               <option value="">— selecione —</option>
-              {materias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              {monthMaterias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
             </Select>
           </FG>
           {cttForm.matId && (() => {
-            const mat = materias.find(m => String(m.id) === cttForm.matId)
+            const mat = monthMaterias.find(m => String(m.id) === cttForm.matId)
             const opts = mat ? cttCatOptions(mat.nome) : []
             return opts.length > 0 ? (
               <FG label="Selecionar do catálogo">

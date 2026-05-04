@@ -22,9 +22,15 @@ export default function TimerPage() {
   const [alertObs, setAlertObs] = useState('')
   const [editingSessId, setEditingSessId] = useState<number | null>(null)
 
-  // Timer config local state
-  const [matSel, setMatSel] = useState('')
-  const [cttSel, setCttSel] = useState('')
+  // Timer config local state — init from config so navigating from SemanaPage pre-fills
+  const [matSel, setMatSel] = useState(() => {
+    const cfg = useTimer.getState().config
+    return cfg.matId ? String(cfg.matId) : ''
+  })
+  const [cttSel, setCttSel] = useState(() => {
+    const cfg = useTimer.getState().config
+    return cfg.cttId ? String(cfg.cttId) : ''
+  })
 
   const notify = (msg: string) => setNotif(msg)
 

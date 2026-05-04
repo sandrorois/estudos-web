@@ -20,6 +20,7 @@ export interface Materia {
   nome: string
   tipo: TipoBloco
   prioridade: 'alta' | 'media' | 'baixa'
+  month?: string  // YYYY-MM — undefined = legacy (visible in all months)
   conteudos: Conteudo[]
 }
 

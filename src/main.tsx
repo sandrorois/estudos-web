@@ -12,6 +12,7 @@ import SemanaPage from './pages/SemanaPage'
 import MensalPage from './pages/MensalPage'
 import ErrosPage from './pages/ErrosPage'
 import DashboardPage from './pages/DashboardPage'
+import RegistrosPage from './pages/RegistrosPage'
 import { useEffect } from 'react'
 
 function App() {
@@ -35,8 +36,9 @@ function App() {
           <Route path="materias"  element={<MateriasPage />} />
           <Route path="semana"    element={<SemanaPage />} />
           <Route path="mensal"    element={<MensalPage />} />
-          <Route path="erros"     element={<ErrosPage />} />
-          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="erros"      element={<ErrosPage />} />
+          <Route path="registros"  element={<RegistrosPage />} />
+          <Route path="dashboard"  element={<DashboardPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/timer" replace />} />
       </Routes>

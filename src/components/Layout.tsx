@@ -10,8 +10,9 @@ const TABS = [
   { to: '/materias',  label: '📚 Matérias' },
   { to: '/mensal',    label: '📆 Mensal' },
   { to: '/semana',    label: '📅 Semana' },
-  { to: '/erros',     label: '❌ Erros' },
-  { to: '/dashboard', label: '📊 Dashboard' },
+  { to: '/erros',      label: '❌ Erros' },
+  { to: '/registros',  label: '📋 Registros' },
+  { to: '/dashboard',  label: '📊 Dashboard' },
 ]
 
 export default function Layout() {
