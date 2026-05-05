@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useStore } from '../store/app'
+import { supabase } from '../lib/supabase'
 import { useTimer } from '../store/timer'
 import { Card, CardTitle, StatCard, Btn, FG, Select, Input, Toggle, Modal, ModalFooter, Notif, Empty } from '../components/ui'
 import { TIPO_LABEL, TIPO_COLOR, today, monthPfx, fmtH, fmtHShort, playAlert } from '../lib/constants'
@@ -34,6 +35,72 @@ export default function TimerPage() {
 
   const notify = (msg: string) => setNotif(msg)
 
+  // ── Wake Lock (desktop) + Push Notifications (mobile) ────────────────────
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  const wakeLockRef = useRef<any>(null)
+  const VAPID_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
+
+  function urlBase64ToUint8Array(b64: string) {
+    const pad = '='.repeat((4 - b64.length % 4) % 4)
+    const base64 = (b64 + pad).replace(/-/g, '+').replace(/_/g, '/')
+    return new Uint8Array([...atob(base64)].map(c => c.charCodeAt(0)))
+  }
+
+  async function setupPush(): Promise<boolean> {
+    if (!isMobile || !VAPID_KEY || !('serviceWorker' in navigator) || !('PushManager' in window)) return false
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js')
+      if (Notification.permission === 'default') await Notification.requestPermission()
+      if (Notification.permission !== 'granted') return false
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_KEY),
+      })
+      const { keys } = sub.toJSON() as any
+      await supabase.from('push_subscriptions').upsert(
+        { user_id: useStore.getState().userId, endpoint: sub.endpoint, p256dh: keys.p256dh, auth: keys.auth },
+        { onConflict: 'user_id,endpoint' }
+      )
+      return true
+    } catch (e) { console.warn('[push]', e); return false }
+  }
+
+  async function scheduleTimerNotification(endAt: number, title: string, body: string) {
+    await supabase.functions.invoke('schedule-notification', {
+      body: { endAt: new Date(endAt).toISOString(), title, body },
+    })
+  }
+
+  async function cancelTimerNotifications() {
+    const uid = useStore.getState().userId
+    if (uid) await supabase.from('timer_notifications').update({ sent: true }).eq('user_id', uid).eq('sent', false)
+  }
+
+  // Desktop: mantém tela acesa enquanto timer roda
+  async function requestWakeLock() {
+    if (isMobile || !('wakeLock' in navigator)) return
+    try { wakeLockRef.current = await (navigator as any).wakeLock.request('screen') } catch {}
+  }
+  function releaseWakeLock() {
+    wakeLockRef.current?.release().catch(() => {})
+    wakeLockRef.current = null
+  }
+  useEffect(() => {
+    if (timer.phase === 'study' || timer.phase === 'break') requestWakeLock()
+    else releaseWakeLock()
+  }, [timer.phase])
+
+  // Ao desbloquear: re-adquire wake lock (desktop) e força tick (detecta fim de timer)
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return
+      if (!isMobile) requestWakeLock()
+      useTimer.getState()._tick()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
+
   // Callbacks when timer ends
   const onStudyEnd = useCallback(() => {
     const cfg = useTimer.getState().config
@@ -45,6 +112,7 @@ export default function TimerPage() {
     }
     addSessao(newSess)
     setPendingSessId(newSess.id)
+    cancelTimerNotifications()
     useTimer.getState().reset()
     if (cfg.questoes) {
       setQCount(''); setQObs(''); setShowQuestoes(true)
@@ -87,6 +155,7 @@ export default function TimerPage() {
   }
 
   function handleSaveEarly() {
+    cancelTimerNotifications()
     const { config, elapsedMin } = timer.saveEarly()
     const newSess: Sessao = {
       id: Date.now(), date: today(), tipo: config.tipo,
@@ -102,6 +171,22 @@ export default function TimerPage() {
       setQCount(''); setQObs(''); setShowQuestoes(true)
     } else {
       setAlertObs(''); setAlertIsBreak(false); setShowAlert(true)
+    }
+  }
+
+  async function handleStart() {
+    await setupPush()
+    timer.start()
+    if (isMobile) {
+      const { endAt, config } = useTimer.getState()
+      if (endAt) {
+        const isBreak = timer.phase === 'break' || timer.phase === 'break-idle'
+        scheduleTimerNotification(
+          endAt,
+          isBreak ? '☕ Pausa concluída!' : '🎉 Sessão concluída!',
+          isBreak ? 'Hora de voltar aos estudos!' : (config.materia || 'Sua sessão terminou')
+        )
+      }
     }
   }
 
@@ -230,10 +315,10 @@ export default function TimerPage() {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <Btn variant="primary" onClick={timer.start} disabled={!canStart}>▶ {timer.phase==='break-idle'?'Iniciar pausa':'Iniciar'}</Btn>
+              <Btn variant="primary" onClick={handleStart} disabled={!canStart}>▶ {timer.phase==='break-idle'?'Iniciar pausa':'Iniciar'}</Btn>
               <Btn onClick={timer.pause} disabled={timer.phase!=='study' && timer.phase!=='break'}>⏸ Pausar</Btn>
               <Btn variant="success" onClick={handleSaveEarly} disabled={!canSaveEarly}>✓ Finalizar</Btn>
-              <Btn variant="ghost" onClick={() => timer.reset()}>↺ Reiniciar</Btn>
+              <Btn variant="ghost" onClick={() => { cancelTimerNotifications(); timer.reset() }}>↺ Reiniciar</Btn>
             </div>
           </div>
           <p className="text-xs text-center" style={{ color: 'var(--text3)' }}>

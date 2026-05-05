@@ -7,6 +7,7 @@ interface TimerState {
   secsLeft: number
   secsMax: number
   secsElapsed: number
+  endAt: number | null   // timestamp (ms) when current phase ends
   config: TimerConfig
   intervalId: ReturnType<typeof setInterval> | null
   // callbacks set by TimerPage
@@ -38,6 +39,7 @@ export const useTimer = create<TimerState>((set, get) => ({
   secsLeft: DEF.duracaoMin * 60,
   secsMax: DEF.duracaoMin * 60,
   secsElapsed: 0,
+  endAt: null,
   config: DEF,
   intervalId: null,
   onStudyEnd: null,
@@ -58,17 +60,20 @@ export const useTimer = create<TimerState>((set, get) => ({
   setCallbacks: (onStudyEnd, onBreakEnd) => set({ onStudyEnd, onBreakEnd }),
 
   start: () => {
-    const { phase, config, intervalId } = get()
+    const { phase, config, intervalId, secsLeft } = get()
     if (intervalId) clearInterval(intervalId)
 
     if (phase === 'idle' || phase === 'done') {
       const secs = config.duracaoMin * 60
-      set({ phase: 'study', secsLeft: secs, secsMax: secs, secsElapsed: 0 })
+      const endAt = Date.now() + secs * 1000
+      set({ phase: 'study', secsLeft: secs, secsMax: secs, secsElapsed: 0, endAt })
     } else if (phase === 'paused') {
-      set({ phase: 'study' })
+      const endAt = Date.now() + secsLeft * 1000
+      set({ phase: 'study', endAt })
     } else if (phase === 'break-idle') {
       const secs = config.pausaMin * 60
-      set({ phase: 'break', secsLeft: secs, secsMax: secs })
+      const endAt = Date.now() + secs * 1000
+      set({ phase: 'break', secsLeft: secs, secsMax: secs, endAt })
     } else return
 
     const id = setInterval(() => get()._tick(), 1000)
@@ -76,24 +81,26 @@ export const useTimer = create<TimerState>((set, get) => ({
   },
 
   pause: () => {
-    const { intervalId } = get()
+    const { intervalId, endAt, secsMax } = get()
     if (intervalId) clearInterval(intervalId)
-    set({ phase: 'paused', intervalId: null })
+    const secsLeft = endAt ? Math.max(0, Math.ceil((endAt - Date.now()) / 1000)) : get().secsLeft
+    set({ phase: 'paused', intervalId: null, endAt: null, secsLeft, secsElapsed: secsMax - secsLeft })
   },
 
   reset: () => {
     const { intervalId, config } = get()
     if (intervalId) clearInterval(intervalId)
     const secs = config.duracaoMin * 60
-    set({ phase: 'idle', secsLeft: secs, secsMax: secs, secsElapsed: 0, intervalId: null })
+    set({ phase: 'idle', secsLeft: secs, secsMax: secs, secsElapsed: 0, intervalId: null, endAt: null })
   },
 
   saveEarly: () => {
-    const { intervalId, config, secsElapsed } = get()
+    const { intervalId, config, endAt, secsMax, secsLeft: stored } = get()
     if (intervalId) clearInterval(intervalId)
-    const elapsedMin = Math.max(1, Math.round(secsElapsed / 60))
+    const secsLeft = endAt ? Math.max(0, Math.ceil((endAt - Date.now()) / 1000)) : stored
+    const elapsedMin = Math.max(1, Math.round((secsMax - secsLeft) / 60))
     const secs = config.duracaoMin * 60
-    set({ phase: 'idle', secsLeft: secs, secsMax: secs, secsElapsed: 0, intervalId: null })
+    set({ phase: 'idle', secsLeft: secs, secsMax: secs, secsElapsed: 0, intervalId: null, endAt: null })
     return { config, elapsedMin }
   },
 
@@ -101,21 +108,23 @@ export const useTimer = create<TimerState>((set, get) => ({
     const { intervalId, config } = get()
     if (intervalId) clearInterval(intervalId)
     const secs = config.pausaMin * 60
+    const endAt = Date.now() + secs * 1000
     const id = setInterval(() => get()._tick(), 1000)
-    set({ phase: 'break', secsLeft: secs, secsMax: secs, intervalId: id })
+    set({ phase: 'break', secsLeft: secs, secsMax: secs, endAt, intervalId: id })
   },
 
   _tick: () => {
-    const { secsLeft, phase, intervalId, onStudyEnd, onBreakEnd } = get()
-    const next = secsLeft - 1
+    const { endAt, secsMax, phase, intervalId, onStudyEnd, onBreakEnd } = get()
+    if (!endAt) return
+    const newSecsLeft = Math.max(0, Math.ceil((endAt - Date.now()) / 1000))
     if (phase === 'study') {
-      set(s => ({ secsLeft: next, secsElapsed: s.secsElapsed + 1 }))
+      set({ secsLeft: newSecsLeft, secsElapsed: secsMax - newSecsLeft })
     } else {
-      set({ secsLeft: next })
+      set({ secsLeft: newSecsLeft })
     }
-    if (next <= 0) {
+    if (newSecsLeft <= 0) {
       if (intervalId) clearInterval(intervalId)
-      set({ intervalId: null })
+      set({ intervalId: null, endAt: null })
       playAlert(phase === 'break')
       flashTitle()
       if (phase === 'study') {
