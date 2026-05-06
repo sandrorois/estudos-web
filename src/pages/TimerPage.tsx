@@ -5,6 +5,7 @@ import { useTimer } from '../store/timer'
 import { Card, CardTitle, StatCard, Btn, FG, Select, Input, Toggle, Modal, ModalFooter, Notif, Empty } from '../components/ui'
 import { TIPO_LABEL, TIPO_COLOR, today, monthPfx, fmtH, fmtHShort, playAlert } from '../lib/constants'
 import type { Sessao, TipoBloco } from '../types'
+import ManualSessionModal, { type ManualSaveData } from '../components/ManualSessionModal'
 
 const CIRC = 502.7
 
@@ -227,14 +228,17 @@ export default function TimerPage() {
     setShowEditSess(false); notify('Sessão atualizada!')
   }
 
-  // Manual session state
-  const [manForm, setManForm] = useState({ data: today(), hora: '', h: 0, m: 30, tipo: 'base' as TipoBloco, matId: '', cttId: '', questoes: false, qCount: 0, obs: '' })
-  function saveManual() {
-    const durMin = manForm.h * 60 + manForm.m
-    if (durMin <= 0) { notify('Informe a duração.'); return }
-    const m = materias.find(x => String(x.id) === manForm.matId)
-    const c = m?.conteudos.find(x => String(x.id) === manForm.cttId)
-    addSessao({ id: Date.now(), date: manForm.data, tipo: manForm.tipo, matId: m?.id??null, cttId: c?.id??null, materia: m?.nome??'', conteudo: c?.nome??'', questoes: manForm.questoes, questoesCount: manForm.questoes?manForm.qCount:0, durMin, time: manForm.hora||new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}), manual: true, obs: manForm.obs||undefined })
+  function saveManual(form: ManualSaveData) {
+    const m = materias.find(x => String(x.id) === form.matId)
+    const c = m?.conteudos.find(x => String(x.id) === form.cttId)
+    addSessao({
+      id: Date.now(), date: form.data, tipo: form.tipo,
+      matId: m?.id ?? null, cttId: c?.id ?? null,
+      materia: m?.nome ?? '', conteudo: c?.nome ?? '',
+      questoes: form.questoes, questoesCount: form.questoes ? form.qCount : 0,
+      durMin: form.durMin, time: form.startTime,
+      manual: true, obs: form.obs || undefined,
+    })
     setShowManual(false); notify('Sessão registrada!')
   }
 
@@ -255,7 +259,7 @@ export default function TimerPage() {
   ].join('\n') : 'Inicie uma sessão para gerar o registro.'
 
   return (
-    <div className="grid grid-cols-2 gap-5 items-start pt-6" style={{ gridTemplateColumns: '1fr 1fr' }}>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start pt-6">
       {notif && <Notif msg={notif} onDone={() => setNotif('')} />}
 
       {/* LEFT */}
@@ -463,46 +467,13 @@ export default function TimerPage() {
         </ModalFooter>
       </Modal>
 
-      {/* Modal: registrar manualmente */}
-      <Modal open={showManual} onClose={() => setShowManual(false)} title="✏ Registrar sessão manualmente" maxWidth={480}>
-        <p className="text-xs mb-4" style={{ color: 'var(--text3)' }}>Esqueceu de ligar o timer? Registre aqui o que foi estudado.</p>
-        <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-3">
-            <FG label="Data"><Input type="date" value={manForm.data} onChange={e => setManForm(f=>({...f,data:e.target.value}))} /></FG>
-            <FG label="Horário"><Input type="time" value={manForm.hora} onChange={e => setManForm(f=>({...f,hora:e.target.value}))} /></FG>
-          </div>
-          <FG label="Duração">
-            <div className="flex gap-2 items-center">
-              <Input type="number" min={0} max={12} value={manForm.h} onChange={e => setManForm(f=>({...f,h:+e.target.value}))} style={{width:64}} />
-              <span style={{ color:'var(--text2)' }}>h</span>
-              <Input type="number" min={0} max={59} step={5} value={manForm.m} onChange={e => setManForm(f=>({...f,m:+e.target.value}))} style={{width:64}} />
-              <span style={{ color:'var(--text2)' }}>min</span>
-            </div>
-          </FG>
-          <div className="grid grid-cols-2 gap-3">
-            <FG label="Tipo"><Select value={manForm.tipo} onChange={e => setManForm(f=>({...f,tipo:e.target.value as TipoBloco}))}>
-              {Object.entries(TIPO_LABEL).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-            </Select></FG>
-            <FG label="Matéria"><Select value={manForm.matId} onChange={e => setManForm(f=>({...f,matId:e.target.value,cttId:''}))}>
-              <option value="">— sem matéria —</option>
-              {materias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
-            </Select></FG>
-          </div>
-          {manForm.matId && <FG label="Conteúdo"><Select value={manForm.cttId} onChange={e => setManForm(f=>({...f,cttId:e.target.value}))}>
-            <option value="">— sem conteúdo —</option>
-            {materias.find(m=>String(m.id)===manForm.matId)?.conteudos.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-          </Select></FG>}
-          <div className="grid grid-cols-2 gap-3">
-            <FG label="Questões?"><div className="flex items-center h-9"><Toggle checked={manForm.questoes} onChange={v => setManForm(f=>({...f,questoes:v}))} label="" /></div></FG>
-            {manForm.questoes && <FG label="Quantidade"><Input type="number" min={0} value={manForm.qCount} onChange={e => setManForm(f=>({...f,qCount:+e.target.value}))} /></FG>}
-          </div>
-          <FG label="Observação (opcional)"><textarea value={manForm.obs} onChange={e => setManForm(f=>({...f,obs:e.target.value}))} rows={2} className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-y" style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', fontFamily:'inherit' }} /></FG>
-        </div>
-        <ModalFooter>
-          <Btn variant="ghost" onClick={() => setShowManual(false)}>Cancelar</Btn>
-          <Btn variant="primary" onClick={saveManual}>✓ Registrar</Btn>
-        </ModalFooter>
-      </Modal>
+      <ManualSessionModal
+        open={showManual}
+        onClose={() => setShowManual(false)}
+        onSave={saveManual}
+        materias={materias}
+        notify={notify}
+      />
     </div>
   )
 }

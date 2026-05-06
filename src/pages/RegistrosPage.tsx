@@ -3,11 +3,27 @@ import { useStore } from '../store/app'
 import { Btn, FG, Input, Select, Toggle, Modal, ModalFooter, Notif, SectionHeader, Empty } from '../components/ui'
 import { TIPO_LABEL, TIPO_COLOR, monthPfx, MESES_PT, fmtHShort } from '../lib/constants'
 import type { TipoBloco, Sessao } from '../types'
+import ManualSessionModal, { type ManualSaveData } from '../components/ManualSessionModal'
 
 export default function RegistrosPage() {
-  const { materias, sessoes, updateSessao, deleteSessao } = useStore()
+  const { materias, sessoes, addSessao, updateSessao, deleteSessao } = useStore()
 
   const [notif, setNotif] = useState('')
+  const [showManual, setShowManual] = useState(false)
+
+  function saveManual(form: ManualSaveData) {
+    const m = materias.find(x => String(x.id) === form.matId)
+    const c = m?.conteudos.find(x => String(x.id) === form.cttId)
+    addSessao({
+      id: Date.now(), date: form.data, tipo: form.tipo,
+      matId: m?.id ?? null, cttId: c?.id ?? null,
+      materia: m?.nome ?? '', conteudo: c?.nome ?? '',
+      questoes: form.questoes, questoesCount: form.questoes ? form.qCount : 0,
+      durMin: form.durMin, time: form.startTime,
+      manual: true, obs: form.obs || undefined,
+    })
+    setShowManual(false); setNotif('Sessão registrada!')
+  }
   const [monthDate, setMonthDate] = useState(new Date())
   const [filterMat, setFilterMat] = useState('')
 
@@ -71,6 +87,7 @@ export default function RegistrosPage() {
         sub={`Sessões de ${MESES_PT[monthDate.getMonth()]} ${monthDate.getFullYear()}`}
         right={
           <>
+            <Btn size="sm" variant="ghost" onClick={() => setShowManual(true)}>✏ Registrar manualmente</Btn>
             <div className="flex items-center gap-1">
               <Btn size="icon" variant="ghost" onClick={prevMonth}>‹</Btn>
               <span className="text-xs font-mono px-2" style={{ color: 'var(--text2)' }}>
@@ -149,6 +166,14 @@ export default function RegistrosPage() {
           </div>
         )
       })}
+
+      <ManualSessionModal
+        open={showManual}
+        onClose={() => setShowManual(false)}
+        onSave={saveManual}
+        materias={materias}
+        notify={setNotif}
+      />
 
       {/* Modal: editar sessão */}
       <Modal open={showEdit} onClose={() => setShowEdit(false)} title="Editar sessão" maxWidth={480}>
