@@ -146,19 +146,54 @@ export default function MateriasPage() {
 
         return (
           <Card key={mat.id} className="overflow-hidden">
-            <div className="flex items-center gap-3 cursor-pointer select-none"
+            <div className="cursor-pointer select-none"
               onClick={() => setExpanded(e => ({ ...e, [mat.id]: !e[mat.id] }))}>
-              <span className="text-xs font-mono w-5 text-center" style={{ color: 'var(--text3)' }}>{isOpen ? '▾' : '▸'}</span>
-              <span className="flex-1 font-semibold text-sm" style={{ color: 'var(--text)' }}>{mat.nome}</span>
-              <Badge label={TIPO_LABEL[mat.tipo]} color={tipoColor} />
-              <Badge label={PRIORIDADE_LABEL[mat.prioridade]} color={PRIORIDADE_COLOR[mat.prioridade]} />
-              <span className="text-xs font-mono" style={{ color: '#22C97A' }}>
-                {(doneMin / 60).toFixed(1)}h{metaH > 0 ? ` / ${metaH}h` : ''}
-              </span>
-              <div style={{ width: 80 }}><PBar pct={pct} color={tipoColor} /></div>
-              <Btn size="icon" variant="ghost" onClick={e => { e.stopPropagation(); openEditMat(mat) }}>✏</Btn>
-              <Btn size="icon" variant="ghost" onClick={e => { e.stopPropagation(); delMat(mat.id) }} style={{ color: '#FF5A5A' }}>✕</Btn>
-              <Btn size="sm" variant="ghost" onClick={e => { e.stopPropagation(); openNewCtt(mat.id) }}>+ Conteúdo</Btn>
+
+              {/* ── Desktop: linha única ── */}
+              <div className="hidden md:flex items-center gap-3">
+                <span className="text-xs font-mono w-5 text-center shrink-0" style={{ color: 'var(--text3)' }}>{isOpen ? '▾' : '▸'}</span>
+                <span className="flex-1 font-semibold text-sm" style={{ color: 'var(--text)' }}>{mat.nome}</span>
+                <Badge label={TIPO_LABEL[mat.tipo]} color={tipoColor} />
+                <Badge label={PRIORIDADE_LABEL[mat.prioridade]} color={PRIORIDADE_COLOR[mat.prioridade]} />
+                <span className="text-xs font-mono" style={{ color: '#22C97A' }}>
+                  {(doneMin / 60).toFixed(1)}h{metaH > 0 ? ` / ${metaH}h` : ''}
+                </span>
+                <div style={{ width: 80 }}><PBar pct={pct} color={tipoColor} /></div>
+                <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                  <Btn size="icon" variant="ghost" onClick={e => { e.stopPropagation(); openEditMat(mat) }}>✏</Btn>
+                  <Btn size="icon" variant="ghost" onClick={e => { e.stopPropagation(); delMat(mat.id) }} style={{ color: '#FF5A5A' }}>✕</Btn>
+                  <Btn size="sm" variant="ghost" onClick={e => { e.stopPropagation(); openNewCtt(mat.id) }}>+ Conteúdo</Btn>
+                </div>
+              </div>
+
+              {/* ── Mobile: multi-linha ── */}
+              <div className="flex flex-col gap-2 md:hidden">
+                {/* Linha 1: seta + nome + ações ícone */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-mono w-5 text-center shrink-0" style={{ color: 'var(--text3)' }}>{isOpen ? '▾' : '▸'}</span>
+                  <span className="flex-1 font-semibold text-sm min-w-0 truncate" style={{ color: 'var(--text)' }}>{mat.nome}</span>
+                  <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                    <Btn size="icon" variant="ghost" onClick={e => { e.stopPropagation(); openEditMat(mat) }}>✏</Btn>
+                    <Btn size="icon" variant="ghost" onClick={e => { e.stopPropagation(); delMat(mat.id) }} style={{ color: '#FF5A5A' }}>✕</Btn>
+                  </div>
+                </div>
+                {/* Linha 2: badges + horas */}
+                <div className="flex items-center gap-2 flex-wrap pl-7">
+                  <Badge label={TIPO_LABEL[mat.tipo]} color={tipoColor} />
+                  <Badge label={PRIORIDADE_LABEL[mat.prioridade]} color={PRIORIDADE_COLOR[mat.prioridade]} />
+                  <span className="text-xs font-mono ml-auto" style={{ color: '#22C97A' }}>
+                    {(doneMin / 60).toFixed(1)}h{metaH > 0 ? ` / ${metaH}h` : ''}
+                  </span>
+                </div>
+                {/* Linha 3: barra de progresso */}
+                <div className="pl-7 pr-1">
+                  <PBar pct={pct} color={tipoColor} />
+                </div>
+                {/* Linha 4: botão + Conteúdo */}
+                <div className="pl-7" onClick={e => e.stopPropagation()}>
+                  <Btn size="sm" variant="ghost" onClick={e => { e.stopPropagation(); openNewCtt(mat.id) }}>+ Conteúdo</Btn>
+                </div>
+              </div>
             </div>
 
             {isOpen && (
@@ -166,54 +201,96 @@ export default function MateriasPage() {
                 {mat.conteudos.length === 0
                   ? <Empty>Nenhum conteúdo. Clique em "+ Conteúdo" para adicionar.</Empty>
                   : (
-                    <table className="w-full text-sm border-separate" style={{ borderSpacing: '0 4px' }}>
-                      <thead>
-                        <tr className="text-xs uppercase tracking-wider" style={{ color: 'var(--text3)' }}>
-                          <th className="text-left pl-2 pb-1">Tópico</th>
-                          <th className="text-right pb-1 pr-4">Horas ({MESES_PT[monthDate.getMonth()].slice(0, 3)})</th>
-                          <th className="text-center pb-1">Questões</th>
-                          <th className="text-center pb-1">Status</th>
-                          <th className="text-right pb-1">Ações</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    <>
+                      {/* ── Desktop table ── */}
+                      <div className="hidden md:block">
+                        <table className="w-full text-sm border-separate" style={{ borderSpacing: '0 4px' }}>
+                          <thead>
+                            <tr className="text-xs uppercase tracking-wider" style={{ color: 'var(--text3)' }}>
+                              <th className="text-left pl-2 pb-1">Tópico</th>
+                              <th className="text-right pb-1 pr-4">Horas ({MESES_PT[monthDate.getMonth()].slice(0, 3)})</th>
+                              <th className="text-center pb-1">Questões</th>
+                              <th className="text-center pb-1">Status</th>
+                              <th className="text-right pb-1">Ações</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {mat.conteudos.map(c => {
+                              const cMin = cttDoneMin(mat.id, c.id, pfx)
+                              const cQ = cttQuestoes(mat.id, c.id, pfx)
+                              const cPct = c.metaH > 0 ? Math.min(100, Math.round(cMin / 60 / c.metaH * 100)) : 0
+                              return (
+                                <tr key={c.id} style={{ background: 'var(--surface2)', borderRadius: 8 }}>
+                                  <td className="pl-2 py-2 rounded-l-lg" style={{ color: 'var(--text)', maxWidth: 280 }}>
+                                    <div className="truncate">{c.nome}</div>
+                                    {c.metaH > 0 && (
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <div style={{ flex: 1, minWidth: 60 }}><PBar pct={cPct} height={3} color={tipoColor} /></div>
+                                        <span className="text-xs font-mono" style={{ color: 'var(--text3)', whiteSpace: 'nowrap' }}>{c.metaH}h meta</span>
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="text-right pr-4 py-2 font-mono text-xs" style={{ color: '#22C97A', whiteSpace: 'nowrap' }}>
+                                    {(cMin / 60).toFixed(1)}h
+                                  </td>
+                                  <td className="text-center py-2">
+                                    {cQ > 0
+                                      ? <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded" style={{ color: '#F5A623', background: 'rgba(245,166,35,.12)' }}>{cQ}Q</span>
+                                      : <span style={{ color: 'var(--text3)' }}>—</span>}
+                                  </td>
+                                  <td className="text-center py-2">
+                                    <StatusPill status={c.status} onClick={() => cycleStatus(mat.id, c.id)} />
+                                  </td>
+                                  <td className="text-right py-2 pr-2 rounded-r-lg">
+                                    <div className="flex gap-1 justify-end">
+                                      <Btn size="icon" variant="ghost" onClick={() => openEditCtt(mat.id, c)}>✏</Btn>
+                                      <Btn size="icon" variant="ghost" onClick={() => delCtt(mat.id, c.id)} style={{ color: '#FF5A5A' }}>✕</Btn>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* ── Mobile card list ── */}
+                      <div className="flex flex-col gap-2 md:hidden">
                         {mat.conteudos.map(c => {
                           const cMin = cttDoneMin(mat.id, c.id, pfx)
                           const cQ = cttQuestoes(mat.id, c.id, pfx)
                           const cPct = c.metaH > 0 ? Math.min(100, Math.round(cMin / 60 / c.metaH * 100)) : 0
                           return (
-                            <tr key={c.id} style={{ background: 'var(--surface2)', borderRadius: 8 }}>
-                              <td className="pl-2 py-2 rounded-l-lg" style={{ color: 'var(--text)', maxWidth: 280 }}>
-                                <div className="truncate">{c.nome}</div>
-                                {c.metaH > 0 && (
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <div style={{ flex: 1, minWidth: 60 }}><PBar pct={cPct} height={3} color={tipoColor} /></div>
-                                    <span className="text-xs font-mono" style={{ color: 'var(--text3)', whiteSpace: 'nowrap' }}>{c.metaH}h meta</span>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="text-right pr-4 py-2 font-mono text-xs" style={{ color: '#22C97A', whiteSpace: 'nowrap' }}>
-                                {(cMin / 60).toFixed(1)}h
-                              </td>
-                              <td className="text-center py-2">
-                                {cQ > 0
-                                  ? <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded" style={{ color: '#F5A623', background: 'rgba(245,166,35,.12)' }}>{cQ}Q</span>
-                                  : <span style={{ color: 'var(--text3)' }}>—</span>}
-                              </td>
-                              <td className="text-center py-2">
-                                <StatusPill status={c.status} onClick={() => cycleStatus(mat.id, c.id)} />
-                              </td>
-                              <td className="text-right py-2 pr-2 rounded-r-lg">
-                                <div className="flex gap-1 justify-end">
+                            <div key={c.id} className="rounded-lg px-3 py-2.5 flex flex-col gap-1.5" style={{ background: 'var(--surface2)' }}>
+                              {/* Row 1: name + actions */}
+                              <div className="flex items-start gap-2 min-w-0">
+                                <span className="flex-1 text-sm font-medium min-w-0" style={{ color: 'var(--text)' }}>{c.nome}</span>
+                                <div className="flex items-center gap-1 shrink-0">
                                   <Btn size="icon" variant="ghost" onClick={() => openEditCtt(mat.id, c)}>✏</Btn>
                                   <Btn size="icon" variant="ghost" onClick={() => delCtt(mat.id, c.id)} style={{ color: '#FF5A5A' }}>✕</Btn>
                                 </div>
-                              </td>
-                            </tr>
+                              </div>
+                              {/* Row 2: hours + questoes + status */}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-mono" style={{ color: '#22C97A' }}>
+                                  {(cMin / 60).toFixed(1)}h{c.metaH > 0 ? ` / ${c.metaH}h` : ''}
+                                </span>
+                                {cQ > 0 && (
+                                  <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded" style={{ color: '#F5A623', background: 'rgba(245,166,35,.12)' }}>{cQ}Q</span>
+                                )}
+                                <div className="ml-auto">
+                                  <StatusPill status={c.status} onClick={() => cycleStatus(mat.id, c.id)} />
+                                </div>
+                              </div>
+                              {/* Row 3: progress bar (if meta set) */}
+                              {c.metaH > 0 && (
+                                <PBar pct={cPct} height={3} color={tipoColor} />
+                              )}
+                            </div>
                           )
                         })}
-                      </tbody>
-                    </table>
+                      </div>
+                    </>
                   )}
               </div>
             )}

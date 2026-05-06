@@ -204,15 +204,24 @@ export default function SemanaPage() {
 
           return (
             <Card key={dia} className={isToday ? 'ring-1 ring-[#4F7CFF]' : ''}>
-              <div className="flex items-start gap-3">
-                <div className="shrink-0 w-20 pt-1">
+              <div className="flex flex-col gap-2 md:flex-row md:items-start md:gap-3">
+                {/* Day label — row on mobile, column on desktop */}
+                <div className="flex items-center gap-2 md:flex-col md:items-start md:shrink-0 md:w-20 md:pt-1">
                   <div className="text-sm font-semibold" style={{ color: isToday ? '#4F7CFF' : 'var(--text)' }}>{dia}</div>
                   <div className="text-xs font-mono" style={{ color: 'var(--text3)' }}>
                     {date.getDate()}/{String(date.getMonth() + 1).padStart(2, '0')}
                   </div>
+                  {/* Studied time + add button — visible in header on mobile only */}
+                  <div className="ml-auto flex items-center gap-1 md:hidden">
+                    {studiedMin > 0 && (
+                      <span className="text-sm font-mono font-semibold" style={{ color: '#22C97A' }}>{fmtHShort(studiedMin)}</span>
+                    )}
+                    <Btn size="icon" variant="ghost" onClick={() => openNewForDay(date)} title="Adicionar bloco para este dia">+</Btn>
+                  </div>
                 </div>
 
-                <div className="flex-1 flex flex-row gap-2 flex-wrap min-w-0">
+                {/* Blocks area — column on mobile, row wrap on desktop */}
+                <div className="flex-1 flex flex-col sm:flex-row gap-2 sm:flex-wrap min-w-0">
                   {daySlotList.length === 0
                     ? <span className="text-xs self-center" style={{ color: 'var(--text3)' }}>Sem blocos planejados</span>
                     : daySlotList.map(slot => {
@@ -221,15 +230,15 @@ export default function SemanaPage() {
                       const tc = TIPO_COLOR[slot.tipo]
                       return (
                         <div key={slot.id}
-                          className="group relative rounded-xl px-3 py-2 flex flex-col gap-1 min-w-[140px] max-w-[200px]"
+                          className="group relative rounded-xl px-3 py-2 flex flex-col gap-1 sm:min-w-[140px] sm:max-w-[200px]"
                           style={{ background: TIPO_BG[slot.tipo], border: `1px solid ${TIPO_BORDER[slot.tipo]}` }}>
                           <button
-                            className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full flex items-center justify-center text-xs"
+                            className="absolute top-1.5 right-1.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full flex items-center justify-center text-xs"
                             style={{ background: tc, color: '#fff' }}
                             onClick={() => launchTimerFromSlot(slot)}
                             title="Iniciar no timer">▶</button>
 
-                          <div className="text-xs font-bold truncate pr-5" style={{ color: TIPO_TEXT[slot.tipo] }}>{slot.matTxt || TIPO_LABEL[slot.tipo]}</div>
+                          <div className="text-xs font-bold truncate pr-8" style={{ color: TIPO_TEXT[slot.tipo] }}>{slot.matTxt || TIPO_LABEL[slot.tipo]}</div>
                           {slot.cttTxt && <div className="text-xs truncate" style={{ color: TIPO_TEXT[slot.tipo], opacity: 0.75 }}>{slot.cttTxt}</div>}
 
                           <div className="flex items-center gap-1.5 flex-wrap">
@@ -247,7 +256,7 @@ export default function SemanaPage() {
 
                           <div className="flex items-center gap-1 justify-between">
                             <StatusPill status={slot.status} onClick={() => cycleSlotStatus(slot.id)} />
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                            <div className="flex gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                               <button className="w-5 h-5 rounded text-xs flex items-center justify-center" style={{ color: 'var(--text2)' }} onClick={() => handleEditClick(slot, date)}>✏</button>
                               <button className="w-5 h-5 rounded text-xs flex items-center justify-center" style={{ color: '#FF5A5A' }} onClick={() => handleDeleteClick(slot, date)}>✕</button>
                             </div>
@@ -257,7 +266,8 @@ export default function SemanaPage() {
                     })}
                 </div>
 
-                <div className="shrink-0 flex flex-col items-end gap-1 pt-1">
+                {/* Studied time + add button — desktop right column only */}
+                <div className="hidden md:flex shrink-0 flex-col items-end gap-1 pt-1">
                   {studiedMin > 0 && (
                     <span className="text-sm font-mono font-semibold" style={{ color: '#22C97A' }}>{fmtHShort(studiedMin)}</span>
                   )}
@@ -276,7 +286,7 @@ export default function SemanaPage() {
             <span style={{ color: 'var(--text3)' }}>{l}</span>
           </span>
         ))}
-        <span className="text-xs" style={{ color: 'var(--text3)' }}>· ↻ repete semanalmente · hover no bloco para ▶</span>
+        <span className="text-xs" style={{ color: 'var(--text3)' }}>· ↻ repete semanalmente</span>
       </div>
 
       {/* Modal: Bloco */}
