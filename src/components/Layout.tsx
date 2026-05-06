@@ -45,9 +45,10 @@ export default function Layout() {
       <nav className="fixed top-0 left-0 right-0 z-50 h-14 flex items-center px-4 gap-0"
            style={{ background: 'var(--nav-bg)', backdropFilter: 'blur(16px)', borderBottom: '1px solid var(--border)' }}>
 
-        <span className="font-serif text-lg mr-4 shrink-0" style={{ color: 'var(--text)' }}>
-          Estud<span style={{ color: '#4F7CFF' }}>os</span>
-        </span>
+        <div className="flex flex-col leading-tight mr-5 shrink-0 select-none">
+          <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: 'var(--text3)' }}>Plano de</span>
+          <span className="text-sm font-bold tracking-tight" style={{ color: '#4F7CFF' }}>Aprovação</span>
+        </div>
 
         {/* Desktop tabs */}
         <div className="hidden md:flex gap-0.5 flex-1 overflow-x-auto">

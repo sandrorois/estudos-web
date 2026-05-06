@@ -47,7 +47,7 @@ export default function ErrosPage() {
       {notif && <Notif msg={notif} onDone={() => setNotif('')} />}
 
       <SectionHeader title="Caderno de Erros"
-        sub={`${erros.filter(e => !e.revisado).length} pendentes de revisão`}
+        sub={erros.filter(e => !e.revisado).length > 0 ? `${erros.filter(e => !e.revisado).length} pendente${erros.filter(e => !e.revisado).length > 1 ? 's' : ''} de revisão` : 'Nenhum erro pendente'}
         right={<Btn variant="primary" size="sm" onClick={openNew}>+ Registrar erro</Btn>}
       />
 

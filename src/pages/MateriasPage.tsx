@@ -131,10 +131,9 @@ export default function MateriasPage() {
 
       {monthMaterias.length === 0 && (
         <Empty>
-          Nenhuma matéria para {MESES_PT[monthDate.getMonth()]}.
           {prevMonthMaterias.length > 0
-            ? ` Clique em "Copiar de ${MESES_PT[prevDate.getMonth()]}" para importar o plano anterior.`
-            : ' Clique em "+ Nova Matéria" para começar.'}
+            ? `Nenhuma matéria configurada para ${MESES_PT[monthDate.getMonth()]}. Use "Copiar de ${MESES_PT[prevDate.getMonth()]}" para importar o plano do mês anterior.`
+            : 'Adicione suas matérias para montar seu Plano de Aprovação. Comece com as principais disciplinas do edital.'}
         </Empty>
       )}
 

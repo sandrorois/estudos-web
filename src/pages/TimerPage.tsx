@@ -215,7 +215,7 @@ export default function TimerPage() {
 
   const matObj = materias.find(m => String(m.id) === matSel)
   const tipoColor = TIPO_COLOR[timer.config.tipo]
-  const phaseLabel = { idle: 'aguardando', study: 'estudando...', paused: 'pausado', 'break-idle': 'sessão concluída!', break: 'pausa ativa', done: 'concluído!' }[timer.phase]
+  const phaseLabel = { idle: 'aguardando', study: 'em andamento', paused: 'pausado', 'break-idle': 'sessão concluída', break: 'pausa ativa', done: 'concluído' }[timer.phase]
   const canStart = timer.phase === 'idle' || timer.phase === 'paused' || timer.phase === 'break-idle' || timer.phase === 'done'
   const canSaveEarly = timer.phase === 'study' || timer.phase === 'paused'
 
@@ -319,9 +319,9 @@ export default function TimerPage() {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              <Btn variant="primary" onClick={handleStart} disabled={!canStart}>▶ {timer.phase==='break-idle'?'Iniciar pausa':'Iniciar'}</Btn>
+              <Btn variant="primary" onClick={handleStart} disabled={!canStart}>▶ {timer.phase==='break-idle'?'Iniciar pausa':'Começar'}</Btn>
               <Btn onClick={timer.pause} disabled={timer.phase!=='study' && timer.phase!=='break'}>⏸ Pausar</Btn>
-              <Btn variant="success" onClick={handleSaveEarly} disabled={!canSaveEarly}>✓ Finalizar</Btn>
+              <Btn variant="success" onClick={handleSaveEarly} disabled={!canSaveEarly}>✓ Concluir</Btn>
               <Btn variant="ghost" onClick={() => { cancelTimerNotifications(); timer.reset() }}>↺ Reiniciar</Btn>
             </div>
           </div>
@@ -348,7 +348,7 @@ export default function TimerPage() {
               <Btn size="sm" variant="ghost" onClick={() => { ts.forEach(s => deleteSessao(s.id)) }}>limpar</Btn>
             </div>
           </div>
-          {ts.length === 0 ? <Empty>Nenhuma sessão ainda hoje.</Empty> : (
+          {ts.length === 0 ? <Empty>Nenhuma sessão registrada hoje. Configure e inicie sua primeira sessão.</Empty> : (
             <div className="flex flex-col">
               {ts.map((s, i) => (
                 <div key={s.id} className="flex flex-col gap-1 py-2 border-b last:border-0" style={{ borderColor: 'var(--border)' }}>

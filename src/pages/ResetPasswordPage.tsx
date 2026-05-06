@@ -35,10 +35,11 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg)' }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <h1 className="font-serif text-4xl mb-2" style={{ color: 'var(--text)' }}>
-            Estud<span style={{ color: '#4F7CFF' }}>os</span>
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--text3)' }}>Câmara dos Deputados — controle de estudos</p>
+          <div className="inline-flex flex-col items-center gap-0.5 mb-3">
+            <span className="text-[11px] font-semibold tracking-widest uppercase" style={{ color: 'var(--text3)' }}>Plano de</span>
+            <h1 className="text-3xl font-bold tracking-tight" style={{ color: '#4F7CFF' }}>Aprovação</h1>
+          </div>
+          <p className="text-sm" style={{ color: 'var(--text3)' }}>Organize seus estudos no seu ritmo.</p>
         </div>
         <div className="rounded-2xl p-6" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
           <h2 className="font-semibold text-base mb-5" style={{ color: 'var(--text)' }}>Criar nova senha</h2>

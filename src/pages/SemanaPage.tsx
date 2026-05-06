@@ -214,7 +214,7 @@ export default function SemanaPage() {
 
                 <div className="flex-1 flex flex-row gap-2 flex-wrap min-w-0">
                   {daySlotList.length === 0
-                    ? <span className="text-xs self-center" style={{ color: 'var(--text3)' }}>Nenhum bloco</span>
+                    ? <span className="text-xs self-center" style={{ color: 'var(--text3)' }}>Sem blocos planejados</span>
                     : daySlotList.map(slot => {
                       const studied = slotStudiedMin(slot, date)
                       const questCount = slotQuestoes(slot, date)
