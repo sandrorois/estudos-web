@@ -74,14 +74,11 @@ export function useTimerPageStatus() {
         const label = 'Tempo esgotado'
         setFavicon(FAVICONS.done)
         setThemeColor('#EF4444')
-        // Flash for ~20s (40 ticks × 500ms), then hold
-        let ticks = 0
+        // Flash indefinitely until user dismisses the modal (phase changes)
+        let even = true
         flashId.current = setInterval(() => {
-          document.title = ticks++ % 2 === 0 ? label : DEFAULT_TITLE
-          if (ticks >= 40) {
-            stopFlash()
-            document.title = label
-          }
+          document.title = even ? label : DEFAULT_TITLE
+          even = !even
         }, 500)
         break
       }
