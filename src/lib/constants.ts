@@ -169,10 +169,5 @@ export function playAlert(isBreak: boolean) {
   } catch {}
 }
 
-export function flashTitle() {
-  let c = 0; const orig = document.title
-  const id = setInterval(() => {
-    document.title = c++ % 2 === 0 ? `⏰ ${orig}` : orig
-    if (c > 8) { clearInterval(id); document.title = orig }
-  }, 500)
-}
+// Visual feedback is handled by useTimerPageStatus hook in Layout
+export function flashTitle() {}

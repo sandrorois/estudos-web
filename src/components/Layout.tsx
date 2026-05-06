@@ -4,6 +4,7 @@ import { useStore } from '../store/app'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
+import { useTimerPageStatus } from '../hooks/useTimerPageStatus'
 
 const TABS = [
   { to: '/timer',     label: '⏱ Timer' },
@@ -20,6 +21,8 @@ export default function Layout() {
   const navigate = useNavigate()
   const [userEmail, setUserEmail] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+
+  useTimerPageStatus()
 
   useEffect(() => {
     document.documentElement.classList.toggle('light', theme === 'light')
