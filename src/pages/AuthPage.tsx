@@ -1,12 +1,38 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { Input, Btn } from '../components/ui'
+
+function PasswordInput({ value, onChange, placeholder = 'mínimo 6 caracteres', label, show, onToggle }: {
+  value: string; onChange: (v: string) => void; placeholder?: string
+  label: string; show: boolean; onToggle: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-medium" style={{ color: 'var(--text2)' }}>{label}</label>
+      <div className="relative">
+        <Input type={show ? 'text' : 'password'} value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder} minLength={6} required
+          style={{ paddingRight: 36 }} />
+        <button type="button" onClick={onToggle}
+          className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)' }}>
+          {show ? <EyeOff size={15} /> : <Eye size={15} />}
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export default function AuthPage() {
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [showPwd, setShowPwd] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
   const [mode, setMode] = useState<'login' | 'register' | 'reset' | 'new-password'>('login')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -23,7 +49,6 @@ export default function AuthPage() {
       }
     })
 
-    // Aguarda todos os eventos de auth dispararem antes de decidir o redirect
     setTimeout(async () => {
       if (recoveryDetected) return
       const { data: { session } } = await supabase.auth.getSession()
@@ -33,9 +58,19 @@ export default function AuthPage() {
     return () => subscription.unsubscribe()
   }, [])
 
+  function changeMode(m: typeof mode) {
+    setMode(m); setError(''); setSuccess(''); setPassword(''); setConfirm('')
+  }
+
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setError(''); setSuccess(''); setLoading(true)
+    setError(''); setSuccess('')
+
+    if ((mode === 'register' || mode === 'new-password') && password !== confirm) {
+      setError('As senhas não coincidem.'); return
+    }
+
+    setLoading(true)
     try {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -80,37 +115,57 @@ export default function AuthPage() {
           </h2>
           <form onSubmit={submit} className="flex flex-col gap-4">
             {mode !== 'new-password' && (
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium" style={{ color: 'var(--text2)' }}>E-mail</label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required />
-            </div>
-            )}
-            {mode !== 'reset' && mode !== 'new-password' && (
               <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium" style={{ color: 'var(--text2)' }}>Senha</label>
-                  {mode === 'login' && (
-                    <button type="button"
-                      onClick={() => { setMode('reset'); setError(''); setSuccess('') }}
-                      className="text-xs transition-all" style={{ color: '#4F7CFF', background: 'none', border: 'none', cursor: 'pointer' }}>
-                      Esqueci a senha
-                    </button>
-                  )}
-                </div>
-                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="mínimo 6 caracteres" minLength={6} required />
+                <label className="text-xs font-medium" style={{ color: 'var(--text2)' }}>E-mail</label>
+                <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" required />
               </div>
             )}
+
             {mode === 'reset' && (
               <p className="text-xs" style={{ color: 'var(--text3)' }}>
                 Informe seu e-mail e enviaremos um link para redefinir sua senha.
               </p>
             )}
-            {mode === 'new-password' && (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium" style={{ color: 'var(--text2)' }}>Nova senha</label>
-                <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="mínimo 6 caracteres" minLength={6} required />
-              </div>
+
+            {(mode === 'login' || mode === 'register') && (
+              <>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium" style={{ color: 'var(--text2)' }}>Senha</label>
+                    {mode === 'login' && (
+                      <button type="button" onClick={() => changeMode('reset')}
+                        className="text-xs" style={{ color: '#4F7CFF', background: 'none', border: 'none', cursor: 'pointer' }}>
+                        Esqueci a senha
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Input type={showPwd ? 'text' : 'password'} value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder="mínimo 6 caracteres" minLength={6} required style={{ paddingRight: 36 }} />
+                    <button type="button" onClick={() => setShowPwd(v => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)' }}>
+                      {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+                {mode === 'register' && (
+                  <PasswordInput label="Confirmar senha" value={confirm} onChange={setConfirm}
+                    placeholder="repita a senha" show={showConfirm} onToggle={() => setShowConfirm(v => !v)} />
+                )}
+              </>
             )}
+
+            {mode === 'new-password' && (
+              <>
+                <PasswordInput label="Nova senha" value={password} onChange={setPassword}
+                  show={showPwd} onToggle={() => setShowPwd(v => !v)} />
+                <PasswordInput label="Confirmar nova senha" value={confirm} onChange={setConfirm}
+                  placeholder="repita a nova senha" show={showConfirm} onToggle={() => setShowConfirm(v => !v)} />
+              </>
+            )}
+
             {error && <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(255,90,90,.1)', color: '#FF5A5A', border: '1px solid rgba(255,90,90,.2)' }}>{error}</p>}
             {success && <p className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(34,201,122,.1)', color: '#22C97A', border: '1px solid rgba(34,201,122,.2)' }}>{success}</p>}
             <Btn type="submit" variant="primary" disabled={loading} className="w-full justify-center py-2.5">
@@ -118,15 +173,15 @@ export default function AuthPage() {
             </Btn>
           </form>
           <div className="mt-4 text-center flex flex-col gap-2">
-            {mode !== 'reset' && (
-              <button onClick={() => { setMode(m => m === 'login' ? 'register' : 'login'); setError(''); setSuccess('') }}
-                className="text-xs transition-all" style={{ color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer' }}>
+            {(mode === 'login' || mode === 'register') && (
+              <button onClick={() => changeMode(mode === 'login' ? 'register' : 'login')}
+                className="text-xs" style={{ color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer' }}>
                 {mode === 'login' ? 'Não tem conta? Criar agora' : 'Já tem conta? Entrar'}
               </button>
             )}
             {mode === 'reset' && (
-              <button onClick={() => { setMode('login'); setError(''); setSuccess('') }}
-                className="text-xs transition-all" style={{ color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer' }}>
+              <button onClick={() => changeMode('login')}
+                className="text-xs" style={{ color: 'var(--text3)', background: 'none', border: 'none', cursor: 'pointer' }}>
                 ← Voltar para o login
               </button>
             )}
