@@ -47,7 +47,7 @@ export default function AuthPage() {
         setSuccess('Conta criada! Verifique seu e-mail para confirmar.')
       } else if (mode === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth`,
+          redirectTo: `${window.location.origin}/reset-password`,
         })
         if (error) throw error
         setSuccess('E-mail de redefinição enviado! Verifique sua caixa de entrada.')

@@ -13,6 +13,7 @@ import MensalPage from './pages/MensalPage'
 import ErrosPage from './pages/ErrosPage'
 import RegistrosPage from './pages/RegistrosPage'
 import DashboardPage from './pages/DashboardPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 function ProtectedRoute() {
   const { userId } = useStore()
@@ -58,6 +59,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Layout />}>
             <Route index element={<Navigate to="/timer" replace />} />
