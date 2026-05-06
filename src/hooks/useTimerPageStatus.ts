@@ -52,33 +52,33 @@ export function useTimerPageStatus() {
 
     switch (phase) {
       case 'study':
-        document.title = `▶ Estudando · ${fmtSecs(secsLeft)}`
+        document.title = `Estudando · ${fmtSecs(secsLeft)}`
         setFavicon(FAVICONS.study)
         setThemeColor('#4F7CFF')
         break
 
       case 'break':
-        document.title = `▶ Pausa · ${fmtSecs(secsLeft)}`
+        document.title = `Pausa · ${fmtSecs(secsLeft)}`
         setFavicon(FAVICONS.break)
         setThemeColor('#22C97A')
         break
 
       case 'paused':
-        document.title = `⏸ Pausado · ${fmtSecs(secsLeft)}`
+        document.title = `Pausado · ${fmtSecs(secsLeft)}`
         setFavicon(FAVICONS.paused)
         setThemeColor('#F59E0B')
         break
 
       case 'break-idle':
       case 'done': {
-        const label = '⚠ Tempo esgotado'
+        const label = 'Tempo esgotado'
         setFavicon(FAVICONS.done)
         setThemeColor('#EF4444')
-        // Flash for ~10s (20 ticks × 500ms), then hold
+        // Flash for ~20s (40 ticks × 500ms), then hold
         let ticks = 0
         flashId.current = setInterval(() => {
           document.title = ticks++ % 2 === 0 ? label : DEFAULT_TITLE
-          if (ticks >= 20) {
+          if (ticks >= 40) {
             stopFlash()
             document.title = label
           }
