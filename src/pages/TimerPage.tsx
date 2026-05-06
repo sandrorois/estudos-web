@@ -115,6 +115,7 @@ export default function TimerPage() {
     setPendingSessId(newSess.id)
     cancelTimerNotifications()
     useTimer.getState().reset()
+    useTimer.getState().setAlertVisible(true)
     if (cfg.questoes) {
       setQCount(''); setQObs(''); setShowQuestoes(true)
     } else {
@@ -123,6 +124,7 @@ export default function TimerPage() {
   }, [])
 
   const onBreakEnd = useCallback(() => {
+    useTimer.getState().setAlertVisible(true)
     setAlertIsBreak(true); setShowAlert(true)
   }, [])
 
@@ -136,6 +138,7 @@ export default function TimerPage() {
     }
     setShowQuestoes(false)
     setAlertObs(''); setAlertIsBreak(false); setShowAlert(true)
+    useTimer.getState().setAlertVisible(true)
   }
 
   function dismissAlert() {
@@ -144,6 +147,7 @@ export default function TimerPage() {
     }
     setPendingSessId(null)
     setShowAlert(false)
+    useTimer.getState().setAlertVisible(false)
   }
 
   function alertStartBreak() {
@@ -152,6 +156,7 @@ export default function TimerPage() {
     }
     setPendingSessId(null)
     setShowAlert(false)
+    useTimer.getState().setAlertVisible(false)
     timer.startBreak()
   }
 
@@ -168,6 +173,7 @@ export default function TimerPage() {
     addSessao(newSess)
     setPendingSessId(newSess.id)
     playAlert(false)
+    useTimer.getState().setAlertVisible(true)
     if (config.questoes) {
       setQCount(''); setQObs(''); setShowQuestoes(true)
     } else {

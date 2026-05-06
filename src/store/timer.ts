@@ -13,9 +13,12 @@ interface TimerState {
   // callbacks set by TimerPage
   onStudyEnd: (() => void) | null
   onBreakEnd: (() => void) | null
+  // UI signal: alert modal is open (used by useTimerPageStatus for tab title)
+  alertVisible: boolean
 
   setConfig: (patch: Partial<TimerConfig>) => void
   setCallbacks: (onStudy: () => void, onBreak: () => void) => void
+  setAlertVisible: (v: boolean) => void
   start: () => void
   pause: () => void
   reset: () => void
@@ -44,6 +47,9 @@ export const useTimer = create<TimerState>((set, get) => ({
   intervalId: null,
   onStudyEnd: null,
   onBreakEnd: null,
+  alertVisible: false,
+
+  setAlertVisible: (v) => set({ alertVisible: v }),
 
   setConfig: (patch) => {
     set(s => {

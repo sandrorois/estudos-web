@@ -22,7 +22,7 @@ const FAVICONS = {
   study:  buildFavicon('#4F7CFF', 'play'),
   break:  buildFavicon('#22C97A', 'play'),
   paused: buildFavicon('#F59E0B', 'pause'),
-  done:   buildFavicon('#EF4444', 'alert'),
+  alert:  buildFavicon('#EF4444', 'alert'),
 }
 
 function setFavicon(href: string) {
@@ -47,13 +47,13 @@ export function useTimerPageStatus() {
 
   useEffect(() => {
     function apply() {
-      const { phase, secsLeft } = useTimer.getState()
+      const { phase, secsLeft, alertVisible } = useTimer.getState()
 
-      // Flash phases: start flash only once; subsequent store updates are ignored
-      if (phase === 'break-idle' || phase === 'done') {
-        if (flashId.current !== null) return  // already flashing
-        const label = 'Tempo esgotado'
-        setFavicon(FAVICONS.done)
+      // Alert modal open → flash "Tempo esgotado!" until user closes it
+      if (alertVisible) {
+        if (flashId.current !== null) return  // already flashing, don't restart
+        const label = 'Tempo esgotado!'
+        setFavicon(FAVICONS.alert)
         setThemeColor('#EF4444')
         document.title = label
         let alt = false
@@ -64,7 +64,7 @@ export function useTimerPageStatus() {
         return
       }
 
-      // All other phases: stop flash (if any) and update immediately
+      // Alert closed → stop flash and reflect current timer phase
       stopFlash()
 
       switch (phase) {
@@ -83,7 +83,7 @@ export function useTimerPageStatus() {
           setFavicon(FAVICONS.paused)
           setThemeColor('#F59E0B')
           break
-        default: // idle
+        default: // idle, done
           document.title = DEFAULT_TITLE
           setFavicon(DEFAULT_FAVICON)
           setThemeColor('#0C0F19')
