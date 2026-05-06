@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import './index.css'
 import { useStore } from './store/app'
 import { supabase } from './lib/supabase'
@@ -13,6 +13,12 @@ import MensalPage from './pages/MensalPage'
 import ErrosPage from './pages/ErrosPage'
 import RegistrosPage from './pages/RegistrosPage'
 import DashboardPage from './pages/DashboardPage'
+
+function ProtectedRoute() {
+  const { userId } = useStore()
+  if (!userId) return <Navigate to="/auth" replace />
+  return <Outlet />
+}
 
 function App() {
   const { theme, loaded, loadData, clearData } = useStore()
@@ -52,15 +58,17 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
-        <Route path="/" element={<Layout />}>
-          <Route index element={<Navigate to="/timer" replace />} />
-          <Route path="timer"      element={<TimerPage />} />
-          <Route path="materias"   element={<MateriasPage />} />
-          <Route path="semana"     element={<SemanaPage />} />
-          <Route path="mensal"     element={<MensalPage />} />
-          <Route path="erros"      element={<ErrosPage />} />
-          <Route path="registros"  element={<RegistrosPage />} />
-          <Route path="dashboard"  element={<DashboardPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Navigate to="/timer" replace />} />
+            <Route path="timer"      element={<TimerPage />} />
+            <Route path="materias"   element={<MateriasPage />} />
+            <Route path="semana"     element={<SemanaPage />} />
+            <Route path="mensal"     element={<MensalPage />} />
+            <Route path="erros"      element={<ErrosPage />} />
+            <Route path="registros"  element={<RegistrosPage />} />
+            <Route path="dashboard"  element={<DashboardPage />} />
+          </Route>
         </Route>
         <Route path="*" element={<Navigate to="/timer" replace />} />
       </Routes>

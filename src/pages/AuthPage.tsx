@@ -14,19 +14,23 @@ export default function AuthPage() {
 
   // Detecta recuperação de senha ou redireciona se já logado
   useEffect(() => {
-    let redirectTimer: ReturnType<typeof setTimeout>
+    let recoveryDetected = false
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
-        clearTimeout(redirectTimer)
+        recoveryDetected = true
         setMode('new-password')
-      } else if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session) {
-        // Pequeno delay para PASSWORD_RECOVERY ter chance de cancelar o redirect
-        redirectTimer = setTimeout(() => navigate('/timer', { replace: true }), 50)
       }
     })
 
-    return () => { subscription.unsubscribe(); clearTimeout(redirectTimer) }
+    // Aguarda todos os eventos de auth dispararem antes de decidir o redirect
+    setTimeout(async () => {
+      if (recoveryDetected) return
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) navigate('/timer', { replace: true })
+    }, 200)
+
+    return () => subscription.unsubscribe()
   }, [])
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
