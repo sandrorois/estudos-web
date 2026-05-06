@@ -19,10 +19,10 @@ function buildFavicon(bgColor: string, shape: 'play' | 'pause' | 'alert'): strin
 }
 
 const FAVICONS = {
-  study: buildFavicon('#4F7CFF', 'play'),
-  break: buildFavicon('#22C97A', 'play'),
+  study:  buildFavicon('#4F7CFF', 'play'),
+  break:  buildFavicon('#22C97A', 'play'),
   paused: buildFavicon('#F59E0B', 'pause'),
-  done: buildFavicon('#EF4444', 'alert'),
+  done:   buildFavicon('#EF4444', 'alert'),
 }
 
 function setFavicon(href: string) {
@@ -36,8 +36,6 @@ function setThemeColor(color: string) {
 }
 
 export function useTimerPageStatus() {
-  const phase = useTimer(s => s.phase)
-  const secsLeft = useTimer(s => s.secsLeft)
   const flashId = useRef<ReturnType<typeof setInterval> | null>(null)
 
   function stopFlash() {
@@ -48,53 +46,55 @@ export function useTimerPageStatus() {
   }
 
   useEffect(() => {
-    stopFlash()
+    function apply() {
+      const { phase, secsLeft } = useTimer.getState()
 
-    switch (phase) {
-      case 'study':
-        document.title = `Estudando · ${fmtSecs(secsLeft)}`
-        setFavicon(FAVICONS.study)
-        setThemeColor('#4F7CFF')
-        break
-
-      case 'break':
-        document.title = `Pausa · ${fmtSecs(secsLeft)}`
-        setFavicon(FAVICONS.break)
-        setThemeColor('#22C97A')
-        break
-
-      case 'paused':
-        document.title = `Pausado · ${fmtSecs(secsLeft)}`
-        setFavicon(FAVICONS.paused)
-        setThemeColor('#F59E0B')
-        break
-
-      case 'break-idle':
-      case 'done': {
+      // Flash phases: start flash only once; subsequent store updates are ignored
+      if (phase === 'break-idle' || phase === 'done') {
+        if (flashId.current !== null) return  // already flashing
         const label = 'Tempo esgotado'
         setFavicon(FAVICONS.done)
         setThemeColor('#EF4444')
-        // Flash indefinitely until user dismisses the modal (phase changes)
-        let even = true
+        document.title = label
+        let alt = false
         flashId.current = setInterval(() => {
-          document.title = even ? label : DEFAULT_TITLE
-          even = !even
+          document.title = alt ? label : DEFAULT_TITLE
+          alt = !alt
         }, 500)
-        break
+        return
       }
 
-      default: // idle
-        document.title = DEFAULT_TITLE
-        setFavicon(DEFAULT_FAVICON)
-        setThemeColor('#0C0F19')
+      // All other phases: stop flash (if any) and update immediately
+      stopFlash()
+
+      switch (phase) {
+        case 'study':
+          document.title = `Estudando · ${fmtSecs(secsLeft)}`
+          setFavicon(FAVICONS.study)
+          setThemeColor('#4F7CFF')
+          break
+        case 'break':
+          document.title = `Pausa · ${fmtSecs(secsLeft)}`
+          setFavicon(FAVICONS.break)
+          setThemeColor('#22C97A')
+          break
+        case 'paused':
+          document.title = `Pausado · ${fmtSecs(secsLeft)}`
+          setFavicon(FAVICONS.paused)
+          setThemeColor('#F59E0B')
+          break
+        default: // idle
+          document.title = DEFAULT_TITLE
+          setFavicon(DEFAULT_FAVICON)
+          setThemeColor('#0C0F19')
+      }
     }
 
-    return stopFlash
-  }, [phase, secsLeft])
+    apply()
+    const unsub = useTimer.subscribe(apply)
 
-  // Restore on unmount
-  useEffect(() => {
     return () => {
+      unsub()
       stopFlash()
       document.title = DEFAULT_TITLE
       setFavicon(DEFAULT_FAVICON)
