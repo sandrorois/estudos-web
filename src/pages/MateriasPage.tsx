@@ -30,10 +30,14 @@ export default function MateriasPage() {
   const [showMat, setShowMat] = useState(false)
   const [editMatId, setEditMatId] = useState<number | null>(null)
   const [matForm, setMatForm] = useState({ nome: '', tipo: 'base' as TipoBloco, prioridade: 'media' as 'alta' | 'media' | 'baixa' })
+  const [matCatalogSel, setMatCatalogSel] = useState('')
 
   // Import modals
   const [showModeModal, setShowModeModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [importEditalId, setImportEditalId] = useState<string | null>(null)
+  const [importStep, setImportStep] = useState<'editais' | 'materias'>('editais')
+  const [importSelectedMats, setImportSelectedMats] = useState<Set<string>>(new Set())
 
   // Conteudo modal
   const [showCtt, setShowCtt] = useState(false)
@@ -71,7 +75,33 @@ export default function MateriasPage() {
     setNotif(`${prevMonthMaterias.length} matéria(s) copiada(s) de ${MESES_PT[prevDate.getMonth()]}!`)
   }
 
-  function openNewMat() { setEditMatId(null); setMatForm({ nome: '', tipo: 'base', prioridade: 'media' }); setShowMat(true) }
+  function openNewMat() { setEditMatId(null); setMatForm({ nome: '', tipo: 'base', prioridade: 'media' }); setMatCatalogSel(''); setShowMat(true) }
+
+  function openImportModal() {
+    setImportEditalId(null)
+    setImportStep('editais')
+    setImportSelectedMats(new Set())
+    setShowImportModal(true)
+  }
+
+  function selectImportEdital(editalId: string) {
+    const edital = EDITAIS_PREDEFINIDOS.find(e => e.id === editalId)!
+    const novaMats = edital.materias
+      .filter(m => !monthMaterias.some(em => normalizeName(em.nome) === normalizeName(m.nome)))
+      .map(m => m.nome)
+    setImportEditalId(editalId)
+    setImportSelectedMats(new Set(novaMats))
+    setImportStep('materias')
+  }
+
+  function toggleImportMat(nome: string) {
+    setImportSelectedMats(prev => {
+      const next = new Set(prev)
+      if (next.has(nome)) next.delete(nome)
+      else next.add(nome)
+      return next
+    })
+  }
   function openEditMat(m: Materia) { setEditMatId(m.id); setMatForm({ nome: m.nome, tipo: m.tipo, prioridade: m.prioridade }); setShowMat(true) }
   function saveMat() {
     if (!matForm.nome.trim()) { setNotif('Informe o nome da matéria.'); return }
@@ -106,7 +136,7 @@ export default function MateriasPage() {
   }
   function delCtt(matId: number, cttId: number) { if (confirm('Excluir conteúdo?')) { deleteConteudo(matId, cttId); setNotif('Conteúdo excluído.') } }
 
-  function runImport(editalId: string) {
+  function runImport(editalId: string, selectedMats: Set<string>) {
     const edital = EDITAIS_PREDEFINIDOS.find(e => e.id === editalId)
     if (!edital) return
 
@@ -119,6 +149,7 @@ export default function MateriasPage() {
     const batchMatNorms = new Set<string>()
 
     for (const edMat of edital.materias) {
+      if (!selectedMats.has(edMat.nome)) continue
       const normEdMat = normalizeName(edMat.nome)
       if (batchMatNorms.has(normEdMat)) continue
 
@@ -160,7 +191,18 @@ export default function MateriasPage() {
   }
   function matMetaH(mat: Materia) { return mat.conteudos.reduce((a, c) => a + c.metaH, 0) }
 
-  const cttCatOptions = (matNome: string) => CATALOGO[matNome] ?? []
+  function cttCatOptions(matNome: string): string[] {
+    const fromEdital = EDITAIS_PREDEFINIDOS.flatMap(e => e.materias)
+      .find(m => normalizeName(m.nome) === normalizeName(matNome))?.conteudos ?? []
+    const fromCatalog = CATALOGO[matNome] ?? []
+    const seen = new Set<string>()
+    return [...fromEdital, ...fromCatalog].filter(c => {
+      const k = normalizeName(c)
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+  }
 
   return (
     <div className="pt-6 flex flex-col gap-5">
@@ -182,7 +224,7 @@ export default function MateriasPage() {
                 ⎘ Copiar de {MESES_PT[prevDate.getMonth()]}
               </Btn>
             )}
-            <Btn size="sm" variant="ghost" onClick={() => setShowImportModal(true)}>⬇ Importar edital</Btn>
+            <Btn size="sm" variant="ghost" onClick={openImportModal}>⬇ Importar edital</Btn>
             <Btn variant="primary" size="sm" onClick={() => setShowModeModal(true)}>+ Nova Matéria</Btn>
           </>
         }
@@ -374,7 +416,7 @@ export default function MateriasPage() {
             style={{ background: 'var(--surface2)', borderColor: 'var(--border)' }}
             onMouseOver={e => (e.currentTarget.style.borderColor = '#4F7CFF')}
             onMouseOut={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-            onClick={() => { setShowModeModal(false); setShowImportModal(true) }}>
+            onClick={() => { setShowModeModal(false); openImportModal() }}>
             <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>📋 Importar do edital</div>
             <div className="text-xs mt-1" style={{ color: 'var(--text3)' }}>Adicione matérias do catálogo PCDF com todos os conteúdos</div>
           </button>
@@ -384,40 +426,81 @@ export default function MateriasPage() {
         </ModalFooter>
       </Modal>
 
-      {/* Modal: Importar edital */}
-      {(() => {
-        const edital = EDITAIS_PREDEFINIDOS[0]
-        const totalCtts = edital.materias.reduce((a, m) => a + m.conteudos.length, 0)
-        return (
-          <Modal open={showImportModal} onClose={() => setShowImportModal(false)} title="Importar Edital" maxWidth={480}>
-            <div className="flex flex-col gap-4">
-              <div className="rounded-xl px-4 py-3" style={{ background: 'var(--surface2)' }}>
-                <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{edital.nome}</div>
-                <div className="text-xs mt-0.5" style={{ color: 'var(--text3)' }}>
-                  {edital.materias.length} matérias · {totalCtts} conteúdos
-                </div>
+      {/* Modal: Importar edital — etapa 1: escolha do edital */}
+      <Modal open={showImportModal && importStep === 'editais'} onClose={() => setShowImportModal(false)} title="Importar Edital" maxWidth={460}>
+        <div className="flex flex-col gap-3">
+          <p className="text-sm" style={{ color: 'var(--text3)' }}>Selecione o edital para importar as matérias:</p>
+          {EDITAIS_PREDEFINIDOS.map(e => (
+            <button key={e.id}
+              className="rounded-xl p-4 text-left border transition-all"
+              style={{ background: 'var(--surface2)', borderColor: 'var(--border)' }}
+              onMouseOver={ev => (ev.currentTarget.style.borderColor = '#4F7CFF')}
+              onMouseOut={ev => (ev.currentTarget.style.borderColor = 'var(--border)')}
+              onClick={() => selectImportEdital(e.id)}>
+              <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{e.nome}</div>
+              <div className="text-xs mt-0.5" style={{ color: 'var(--text3)' }}>
+                {e.materias.length} matérias · {e.materias.reduce((a, m) => a + m.conteudos.length, 0)} conteúdos
               </div>
-              <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text3)' }}>Matérias</div>
+            </button>
+          ))}
+        </div>
+        <ModalFooter>
+          <Btn variant="ghost" onClick={() => setShowImportModal(false)}>Cancelar</Btn>
+        </ModalFooter>
+      </Modal>
+
+      {/* Modal: Importar edital — etapa 2: seleção de matérias */}
+      {importEditalId && (() => {
+        const edital = EDITAIS_PREDEFINIDOS.find(e => e.id === importEditalId)!
+        const allSelected = edital.materias.every(m => importSelectedMats.has(m.nome))
+        return (
+          <Modal open={showImportModal && importStep === 'materias'} onClose={() => setShowImportModal(false)} title="Importar Edital" maxWidth={480}>
+            <div className="flex flex-col gap-4">
+              <button className="flex items-center gap-1 text-xs w-fit" style={{ color: 'var(--text3)' }}
+                onClick={() => setImportStep('editais')}>
+                ← {edital.nome}
+              </button>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text3)' }}>
+                  Matérias ({importSelectedMats.size} selecionada{importSelectedMats.size !== 1 ? 's' : ''})
+                </span>
+                <button className="text-xs" style={{ color: '#4F7CFF' }}
+                  onClick={() => setImportSelectedMats(
+                    allSelected ? new Set() : new Set(edital.materias.map(m => m.nome))
+                  )}>
+                  {allSelected ? 'Desmarcar todas' : 'Selecionar todas'}
+                </button>
+              </div>
               <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto pr-1">
                 {edital.materias.map(m => {
                   const exists = monthMaterias.some(em => normalizeName(em.nome) === normalizeName(m.nome))
+                  const checked = importSelectedMats.has(m.nome)
                   return (
-                    <div key={m.nome} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--surface2)' }}>
-                      <span className="flex-1 text-sm" style={{ color: exists ? 'var(--text3)' : 'var(--text)' }}>{m.nome}</span>
-                      {exists
-                        ? <span className="text-xs" style={{ color: 'var(--text3)' }}>já existe</span>
-                        : <span className="text-xs font-medium" style={{ color: '#22C97A' }}>nova</span>}
-                    </div>
+                    <label key={m.nome}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer select-none"
+                      style={{ background: 'var(--surface2)' }}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleImportMat(m.nome)}
+                        className="accent-[#4F7CFF]" />
+                      <span className="flex-1 text-sm" style={{ color: checked ? 'var(--text)' : 'var(--text3)' }}>
+                        {m.nome}
+                      </span>
+                      <span className="text-xs shrink-0" style={{ color: exists ? 'var(--text3)' : '#22C97A' }}>
+                        {exists ? 'já existe' : 'nova'}
+                      </span>
+                    </label>
                   )
                 })}
               </div>
               <div className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(79,124,255,.08)', color: 'var(--text3)', border: '1px solid rgba(79,124,255,.2)' }}>
-                Matérias e conteúdos existentes são preservados. Apenas itens faltantes serão adicionados.
+                Dados existentes são preservados. Apenas itens faltantes serão adicionados.
               </div>
             </div>
             <ModalFooter>
               <Btn variant="ghost" onClick={() => setShowImportModal(false)}>Cancelar</Btn>
-              <Btn variant="primary" onClick={() => runImport(edital.id)}>⬇ Importar</Btn>
+              <Btn variant="primary" disabled={importSelectedMats.size === 0}
+                onClick={() => runImport(edital.id, importSelectedMats)}>
+                ⬇ Importar {importSelectedMats.size > 0 ? `(${importSelectedMats.size})` : ''}
+              </Btn>
             </ModalFooter>
           </Modal>
         )
@@ -426,6 +509,23 @@ export default function MateriasPage() {
       {/* Modal: Matéria */}
       <Modal open={showMat} onClose={() => setShowMat(false)} title={editMatId ? 'Editar Matéria' : 'Nova Matéria'} maxWidth={420}>
         <div className="flex flex-col gap-3">
+          {!editMatId && (
+            <FG label="Escolher do catálogo (opcional)">
+              <Select value={matCatalogSel} onChange={e => {
+                const sel = e.target.value
+                setMatCatalogSel(sel)
+                if (sel) {
+                  const found = EDITAIS_PREDEFINIDOS.flatMap(ed => ed.materias).find(m => m.nome === sel)
+                  if (found) setMatForm({ nome: found.nome, tipo: found.tipo, prioridade: found.prioridade })
+                }
+              }}>
+                <option value="">— selecione uma matéria —</option>
+                {EDITAIS_PREDEFINIDOS.flatMap(ed => ed.materias).map(m => (
+                  <option key={m.nome} value={m.nome}>{m.nome}</option>
+                ))}
+              </Select>
+            </FG>
+          )}
           <FG label="Nome"><Input value={matForm.nome} onChange={e => setMatForm(f => ({ ...f, nome: e.target.value }))} placeholder="Ex: Direito Constitucional" /></FG>
           <FG label="Tipo">
             <Select value={matForm.tipo} onChange={e => setMatForm(f => ({ ...f, tipo: e.target.value as TipoBloco }))}>
