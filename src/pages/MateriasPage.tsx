@@ -2,7 +2,12 @@ import { useState } from 'react'
 import { useStore } from '../store/app'
 import { Card, Btn, FG, Select, Input, Toggle, Modal, ModalFooter, Notif, Empty, SectionHeader, StatusPill, PBar } from '../components/ui'
 import { CATALOGO, TIPO_LABEL, TIPO_COLOR, monthPfx, MESES_PT } from '../lib/constants'
+import { EDITAIS_PREDEFINIDOS } from '../lib/editalCatalog'
 import type { TipoBloco, StatusConteudo, Materia, Conteudo } from '../types'
+
+function normalizeName(s: string) {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().replace(/\s+/g, ' ').toLowerCase()
+}
 
 const PRIORIDADE_LABEL = { alta: 'Alta', media: 'Média', baixa: 'Baixa' }
 const PRIORIDADE_COLOR = { alta: '#FF5A5A', media: '#F5A623', baixa: '#22C97A' }
@@ -25,6 +30,10 @@ export default function MateriasPage() {
   const [showMat, setShowMat] = useState(false)
   const [editMatId, setEditMatId] = useState<number | null>(null)
   const [matForm, setMatForm] = useState({ nome: '', tipo: 'base' as TipoBloco, prioridade: 'media' as 'alta' | 'media' | 'baixa' })
+
+  // Import modals
+  const [showModeModal, setShowModeModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
 
   // Conteudo modal
   const [showCtt, setShowCtt] = useState(false)
@@ -97,6 +106,55 @@ export default function MateriasPage() {
   }
   function delCtt(matId: number, cttId: number) { if (confirm('Excluir conteúdo?')) { deleteConteudo(matId, cttId); setNotif('Conteúdo excluído.') } }
 
+  function runImport(editalId: string) {
+    const edital = EDITAIS_PREDEFINIDOS.find(e => e.id === editalId)
+    if (!edital) return
+
+    const baseId = Date.now()
+    let offset = 0
+    const makeId = () => baseId + (offset++)
+
+    let addedMats = 0
+    let addedCtts = 0
+    const batchMatNorms = new Set<string>()
+
+    for (const edMat of edital.materias) {
+      const normEdMat = normalizeName(edMat.nome)
+      if (batchMatNorms.has(normEdMat)) continue
+
+      const existingMat = monthMaterias.find(m => normalizeName(m.nome) === normEdMat)
+
+      let targetMatId: number
+      let existingCttNorms: string[]
+
+      if (existingMat) {
+        targetMatId = existingMat.id
+        existingCttNorms = existingMat.conteudos.map(c => normalizeName(c.nome))
+      } else {
+        targetMatId = makeId()
+        addMateria({ id: targetMatId, nome: edMat.nome, tipo: edMat.tipo, prioridade: edMat.prioridade, month: pfx, conteudos: [] })
+        batchMatNorms.add(normEdMat)
+        addedMats++
+        existingCttNorms = []
+      }
+
+      const batchCttNorms = new Set<string>(existingCttNorms)
+      for (const cttNome of edMat.conteudos) {
+        const normCtt = normalizeName(cttNome)
+        if (batchCttNorms.has(normCtt)) continue
+        addConteudo(targetMatId, { id: makeId(), nome: cttNome, metaH: 0, questoes: false, status: 0 })
+        batchCttNorms.add(normCtt)
+        addedCtts++
+      }
+    }
+
+    const msg = addedMats === 0 && addedCtts === 0
+      ? 'Todas as matérias já estavam importadas.'
+      : `Importado: ${addedMats} matéria(s) e ${addedCtts} conteúdo(s) adicionados.`
+    setNotif(msg)
+    setShowImportModal(false)
+  }
+
   function matDoneMin(mat: Materia) {
     return sessoes.filter(s => s.matId === mat.id && s.date.startsWith(pfx)).reduce((a, s) => a + s.durMin, 0)
   }
@@ -124,7 +182,8 @@ export default function MateriasPage() {
                 ⎘ Copiar de {MESES_PT[prevDate.getMonth()]}
               </Btn>
             )}
-            <Btn variant="primary" size="sm" onClick={openNewMat}>+ Nova Matéria</Btn>
+            <Btn size="sm" variant="ghost" onClick={() => setShowImportModal(true)}>⬇ Importar edital</Btn>
+            <Btn variant="primary" size="sm" onClick={() => setShowModeModal(true)}>+ Nova Matéria</Btn>
           </>
         }
       />
@@ -297,6 +356,72 @@ export default function MateriasPage() {
           </Card>
         )
       })}
+
+      {/* Modal: Modo de adição */}
+      <Modal open={showModeModal} onClose={() => setShowModeModal(false)} title="Adicionar Matéria" maxWidth={400}>
+        <div className="flex flex-col gap-3">
+          <button
+            className="rounded-xl p-4 text-left border transition-all"
+            style={{ background: 'var(--surface2)', borderColor: 'var(--border)' }}
+            onMouseOver={e => (e.currentTarget.style.borderColor = '#4F7CFF')}
+            onMouseOut={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+            onClick={() => { setShowModeModal(false); openNewMat() }}>
+            <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>✏ Criar manualmente</div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text3)' }}>Preencha nome, tipo e prioridade</div>
+          </button>
+          <button
+            className="rounded-xl p-4 text-left border transition-all"
+            style={{ background: 'var(--surface2)', borderColor: 'var(--border)' }}
+            onMouseOver={e => (e.currentTarget.style.borderColor = '#4F7CFF')}
+            onMouseOut={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+            onClick={() => { setShowModeModal(false); setShowImportModal(true) }}>
+            <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>📋 Importar do edital</div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text3)' }}>Adicione matérias do catálogo PCDF com todos os conteúdos</div>
+          </button>
+        </div>
+        <ModalFooter>
+          <Btn variant="ghost" onClick={() => setShowModeModal(false)}>Cancelar</Btn>
+        </ModalFooter>
+      </Modal>
+
+      {/* Modal: Importar edital */}
+      {(() => {
+        const edital = EDITAIS_PREDEFINIDOS[0]
+        const totalCtts = edital.materias.reduce((a, m) => a + m.conteudos.length, 0)
+        return (
+          <Modal open={showImportModal} onClose={() => setShowImportModal(false)} title="Importar Edital" maxWidth={480}>
+            <div className="flex flex-col gap-4">
+              <div className="rounded-xl px-4 py-3" style={{ background: 'var(--surface2)' }}>
+                <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{edital.nome}</div>
+                <div className="text-xs mt-0.5" style={{ color: 'var(--text3)' }}>
+                  {edital.materias.length} matérias · {totalCtts} conteúdos
+                </div>
+              </div>
+              <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text3)' }}>Matérias</div>
+              <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto pr-1">
+                {edital.materias.map(m => {
+                  const exists = monthMaterias.some(em => normalizeName(em.nome) === normalizeName(m.nome))
+                  return (
+                    <div key={m.nome} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--surface2)' }}>
+                      <span className="flex-1 text-sm" style={{ color: exists ? 'var(--text3)' : 'var(--text)' }}>{m.nome}</span>
+                      {exists
+                        ? <span className="text-xs" style={{ color: 'var(--text3)' }}>já existe</span>
+                        : <span className="text-xs font-medium" style={{ color: '#22C97A' }}>nova</span>}
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="text-xs px-3 py-2 rounded-lg" style={{ background: 'rgba(79,124,255,.08)', color: 'var(--text3)', border: '1px solid rgba(79,124,255,.2)' }}>
+                Matérias e conteúdos existentes são preservados. Apenas itens faltantes serão adicionados.
+              </div>
+            </div>
+            <ModalFooter>
+              <Btn variant="ghost" onClick={() => setShowImportModal(false)}>Cancelar</Btn>
+              <Btn variant="primary" onClick={() => runImport(edital.id)}>⬇ Importar</Btn>
+            </ModalFooter>
+          </Modal>
+        )
+      })()}
 
       {/* Modal: Matéria */}
       <Modal open={showMat} onClose={() => setShowMat(false)} title={editMatId ? 'Editar Matéria' : 'Nova Matéria'} maxWidth={420}>
