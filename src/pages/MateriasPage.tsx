@@ -174,6 +174,8 @@ export default function MateriasPage() {
 
     let addedMats = 0
     let addedCtts = 0
+    let reusedMats = 0
+    let skippedCtts = 0
     const batchMatNorms = new Set<string>()
 
     for (const edMat of edital.materias) {
@@ -189,6 +191,7 @@ export default function MateriasPage() {
       if (existingMat) {
         targetMatId = existingMat.id
         existingCttNorms = existingMat.conteudos.map(c => normalizeName(c.nome))
+        reusedMats++
       } else {
         targetMatId = makeId()
         addMateria({ id: targetMatId, nome: edMat.nome, tipo: edMat.tipo, prioridade: edMat.prioridade, month: pfx, conteudos: [] })
@@ -200,16 +203,21 @@ export default function MateriasPage() {
       const batchCttNorms = new Set<string>(existingCttNorms)
       for (const cttNome of edMat.conteudos) {
         const normCtt = normalizeName(cttNome)
-        if (batchCttNorms.has(normCtt)) continue
+        if (batchCttNorms.has(normCtt)) { skippedCtts++; continue }
         addConteudo(targetMatId, { id: makeId(), nome: cttNome, metaH: 0, questoes: false, status: 0 })
         batchCttNorms.add(normCtt)
         addedCtts++
       }
     }
 
-    const msg = addedMats === 0 && addedCtts === 0
+    const parts: string[] = []
+    if (addedMats > 0) parts.push(`${addedMats} matéria${addedMats !== 1 ? 's' : ''} adicionada${addedMats !== 1 ? 's' : ''}`)
+    if (addedCtts > 0) parts.push(`${addedCtts} conteúdo${addedCtts !== 1 ? 's' : ''} adicionado${addedCtts !== 1 ? 's' : ''}`)
+    if (reusedMats > 0) parts.push(`${reusedMats} matéria${reusedMats !== 1 ? 's' : ''} já existente${reusedMats !== 1 ? 's' : ''} aproveitada${reusedMats !== 1 ? 's' : ''}`)
+    if (skippedCtts > 0) parts.push(`${skippedCtts} conteúdo${skippedCtts !== 1 ? 's' : ''} ignorado${skippedCtts !== 1 ? 's' : ''} por já existirem`)
+    const msg = parts.length === 0
       ? 'Todas as matérias já estavam importadas.'
-      : `Importado: ${addedMats} matéria(s) e ${addedCtts} conteúdo(s) adicionados.`
+      : `Edital importado com sucesso: ${parts.join(', ')}.`
     setNotif(msg)
     setShowImportModal(false)
   }
