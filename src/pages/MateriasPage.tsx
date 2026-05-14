@@ -20,7 +20,7 @@ function Badge({ label, color }: { label: string; color: string }) {
 }
 
 export default function MateriasPage() {
-  const { materias, addMateria, updateMateria, deleteMateria, addConteudo, updateConteudo, deleteConteudo, cycleStatus, sessoes, cttDoneMin, cttQuestoes } = useStore()
+  const { materias, addMateria, updateMateria, deleteMateria, addConteudo, updateConteudo, deleteConteudo, cycleStatus, sessoes, cttDoneMin, cttQuestoes, matOrder, reorderMaterias } = useStore()
 
   const [notif, setNotif] = useState('')
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
@@ -44,6 +44,10 @@ export default function MateriasPage() {
   const [editCttId, setEditCttId] = useState<number | null>(null)
   const [cttForm, setCttForm] = useState({ matId: '', catalogoSel: '', nome: '', metaH: 0, questoes: false, status: 0 as StatusConteudo })
 
+  // Drag state for materia reordering
+  const [dragMatId, setDragMatId] = useState<number | null>(null)
+  const [dragOverMatId, setDragOverMatId] = useState<number | null>(null)
+
   const pfx = monthPfx(monthDate)
   const currentPfx = monthPfx(new Date())
   const isCurrentMonth = pfx === currentPfx
@@ -51,8 +55,32 @@ export default function MateriasPage() {
   function prevMonth() { const d = new Date(monthDate); d.setMonth(d.getMonth() - 1); setMonthDate(d) }
   function nextMonth() { const d = new Date(monthDate); d.setMonth(d.getMonth() + 1); setMonthDate(d) }
 
-  // Matérias do mês: month-specific + legacy (sem month) apenas no mês atual
-  const monthMaterias = materias.filter(m => m.month === pfx || (isCurrentMonth && !m.month))
+  function handleMatDrop(targetId: number) {
+    if (dragMatId === null || dragMatId === targetId) { setDragOverMatId(null); return }
+    const from = monthMaterias.findIndex(m => m.id === dragMatId)
+    const to   = monthMaterias.findIndex(m => m.id === targetId)
+    if (from === -1 || to === -1) return
+    const reordered = [...monthMaterias]
+    const [moved] = reordered.splice(from, 1)
+    reordered.splice(to, 0, moved)
+    reorderMaterias(reordered.map(m => m.id))
+    setDragMatId(null)
+    setDragOverMatId(null)
+  }
+
+  // Matérias do mês: month-specific + legacy, sorted by saved matOrder
+  const monthMaterias = (() => {
+    const filtered = materias.filter(m => m.month === pfx || (isCurrentMonth && !m.month))
+    if (matOrder.length === 0) return filtered
+    return [...filtered].sort((a, b) => {
+      const ia = matOrder.indexOf(a.id)
+      const ib = matOrder.indexOf(b.id)
+      if (ia === -1 && ib === -1) return 0
+      if (ia === -1) return 1
+      if (ib === -1) return -1
+      return ia - ib
+    })
+  })()
 
   // Matérias do mês anterior (para copiar)
   const prevDate = new Date(monthDate.getFullYear(), monthDate.getMonth() - 1, 1)
@@ -246,12 +274,26 @@ export default function MateriasPage() {
         const tipoColor = TIPO_COLOR[mat.tipo]
 
         return (
-          <Card key={mat.id} className="overflow-hidden">
+          <Card key={mat.id}
+            className={`overflow-hidden transition-opacity ${dragMatId === mat.id ? 'opacity-40' : ''} ${dragOverMatId === mat.id && dragMatId !== mat.id ? 'ring-2 ring-[#4F7CFF]' : ''}`}
+            onDragOver={(e: React.DragEvent) => { e.preventDefault(); setDragOverMatId(mat.id) }}
+            onDragLeave={() => setDragOverMatId(null)}
+            onDrop={(e: React.DragEvent) => { e.preventDefault(); handleMatDrop(mat.id) }}
+            onDragEnd={() => { setDragMatId(null); setDragOverMatId(null) }}
+          >
             <div className="cursor-pointer select-none"
               onClick={() => setExpanded(e => ({ ...e, [mat.id]: !e[mat.id] }))}>
 
               {/* ── Desktop: linha única ── */}
               <div className="hidden md:flex items-center gap-3">
+                <span
+                  draggable
+                  onDragStart={(e) => { e.stopPropagation(); setDragMatId(mat.id) }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="cursor-grab active:cursor-grabbing text-base shrink-0 px-0.5 select-none"
+                  style={{ color: 'var(--text3)' }}
+                  title="Arrastar para reordenar"
+                >⠿</span>
                 <span className="text-xs font-mono w-5 text-center shrink-0" style={{ color: 'var(--text3)' }}>{isOpen ? '▾' : '▸'}</span>
                 <span className="flex-1 font-semibold text-sm" style={{ color: 'var(--text)' }}>{mat.nome}</span>
                 <Badge label={TIPO_LABEL[mat.tipo]} color={tipoColor} />
@@ -269,8 +311,16 @@ export default function MateriasPage() {
 
               {/* ── Mobile: multi-linha ── */}
               <div className="flex flex-col gap-2 md:hidden">
-                {/* Linha 1: seta + nome + ações ícone */}
+                {/* Linha 1: grip + seta + nome + ações ícone */}
                 <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    draggable
+                    onDragStart={(e) => { e.stopPropagation(); setDragMatId(mat.id) }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="cursor-grab active:cursor-grabbing text-base shrink-0 select-none"
+                    style={{ color: 'var(--text3)' }}
+                    title="Arrastar para reordenar"
+                  >⠿</span>
                   <span className="text-xs font-mono w-5 text-center shrink-0" style={{ color: 'var(--text3)' }}>{isOpen ? '▾' : '▸'}</span>
                   <span className="flex-1 font-semibold text-sm min-w-0 truncate" style={{ color: 'var(--text)' }}>{mat.nome}</span>
                   <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>

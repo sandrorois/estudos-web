@@ -39,6 +39,12 @@ interface AppState {
   deleteConteudo: (matId: number, cId: number) => void
   cycleStatus: (matId: number, cId: number) => void
 
+  // Ordering (persisted in localStorage, applied over Supabase data)
+  matOrder: number[]
+  slotOrder: number[]
+  reorderMaterias: (orderedIds: number[]) => void
+  setSlotOrder: (ids: number[]) => void
+
   // Semana
   slots: SlotSemana[]
   setSlots: (s: SlotSemana[]) => void
@@ -108,6 +114,12 @@ export const useStore = create<AppState>()(
         materias: [], slots: [...DEF_SEMANA], sessoes: [],
         erros: [], dayPlans: {}, loaded: true, userId: null,
       }),
+
+      // ── Ordering ──────────────────────────────────────────────────────────
+      matOrder: [],
+      slotOrder: [],
+      reorderMaterias: (orderedIds) => set({ matOrder: orderedIds }),
+      setSlotOrder: (ids) => set({ slotOrder: ids }),
 
       // ── Matérias ───────────────────────────────────────────────────────────
       materias: [],
@@ -299,8 +311,8 @@ export const useStore = create<AppState>()(
           .reduce((a, s) => a + (s.questoesCount || 0), 0),
     }),
     {
-      name: 'estudos-camara-theme', // only theme persists in localStorage
-      partialize: (s) => ({ theme: s.theme }),
+      name: 'estudos-camara-theme',
+      partialize: (s) => ({ theme: s.theme, matOrder: s.matOrder, slotOrder: s.slotOrder }),
     }
   )
 )

@@ -3,10 +3,11 @@ import { STATUS_LABEL, STATUS_COLOR } from '../../lib/constants'
 import type { StatusConteudo } from '../../types'
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
-export function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+export function Card({ children, className = '', ...rest }: React.HTMLAttributes<HTMLDivElement> & { children: React.ReactNode }) {
   return (
     <div className={`rounded-2xl p-5 ${className}`}
-         style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--card-shadow)' }}>
+         style={{ background: 'var(--surface)', border: '1px solid var(--border)', boxShadow: 'var(--card-shadow)' }}
+         {...rest}>
       {children}
     </div>
   )

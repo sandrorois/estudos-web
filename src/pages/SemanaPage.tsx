@@ -9,7 +9,7 @@ import type { TipoBloco, SlotSemana, DiaSemana } from '../types'
 function dowIndex(d: Date) { return (d.getDay() + 6) % 7 } // Mon=0 … Sun=6
 
 export default function SemanaPage() {
-  const { materias, slots, addSlot, updateSlot, deleteSlot, cycleSlotStatus, resetSemana, sessoes } = useStore()
+  const { materias, slots, addSlot, updateSlot, deleteSlot, cycleSlotStatus, resetSemana, sessoes, slotOrder, setSlotOrder } = useStore()
   const navigate = useNavigate()
 
   const [notif, setNotif] = useState('')
@@ -23,6 +23,11 @@ export default function SemanaPage() {
     dia: 'Segunda' as DiaSemana, tipo: 'base' as TipoBloco,
     matId: '', cttId: '', horas: '2h', questoes: false, recorrente: false,
   })
+
+  // Drag state for slot reordering / moving
+  const [dragSlotId, setDragSlotId] = useState<number | null>(null)
+  const [dragOverSlotId, setDragOverSlotId] = useState<number | null>(null)
+  const [dragOverDia, setDragOverDia] = useState<string | null>(null)
 
   // recurring confirm dialog
   const [recurringConfirm, setRecurringConfirm] = useState<{
@@ -44,7 +49,7 @@ export default function SemanaPage() {
   function slotsForDate(d: Date): SlotSemana[] {
     const dk = dateKey(d)
     const dow = DIAS_SEMANA[dowIndex(d)] as DiaSemana
-    return slots.filter(sl => {
+    const filtered = slots.filter(sl => {
       const excs = sl.exceptions || []
       if (excs.includes(dk)) return false
       if (sl.date != null) {
@@ -52,8 +57,35 @@ export default function SemanaPage() {
           ? sl.dia === dow && dk >= sl.date
           : sl.date === dk
       }
-      return sl.dia === dow // legacy DEF_SEMANA: recurring by day name
+      return sl.dia === dow
     })
+    if (slotOrder.length === 0) return filtered
+    return [...filtered].sort((a, b) => {
+      const ia = slotOrder.indexOf(a.id)
+      const ib = slotOrder.indexOf(b.id)
+      if (ia === -1 && ib === -1) return 0
+      if (ia === -1) return 1
+      if (ib === -1) return -1
+      return ia - ib
+    })
+  }
+
+  function moveSlotTo(draggedId: number, targetDia: DiaSemana, insertBeforeId: number | null) {
+    const dragged = slots.find(s => s.id === draggedId)
+    if (!dragged) return
+    if (dragged.dia !== targetDia) updateSlot(draggedId, { dia: targetDia })
+    const base = slotOrder.length > 0 ? [...slotOrder] : slots.map(s => s.id)
+    const without = base.filter(id => id !== draggedId)
+    if (insertBeforeId === null) {
+      without.push(draggedId)
+    } else {
+      const idx = without.indexOf(insertBeforeId)
+      without.splice(idx === -1 ? without.length : idx, 0, draggedId)
+    }
+    setSlotOrder(without)
+    setDragSlotId(null)
+    setDragOverSlotId(null)
+    setDragOverDia(null)
   }
 
   function launchTimerFromSlot(slot: SlotSemana) {
@@ -221,7 +253,14 @@ export default function SemanaPage() {
                 </div>
 
                 {/* Blocks area — column on mobile, row wrap on desktop */}
-                <div className="flex-1 flex flex-col sm:flex-row gap-2 sm:flex-wrap min-w-0">
+                <div className="flex-1 flex flex-col sm:flex-row gap-2 sm:flex-wrap min-w-0"
+                  onDragOver={(e: React.DragEvent) => { e.preventDefault(); setDragOverDia(dia) }}
+                  onDrop={(e: React.DragEvent) => { e.preventDefault(); if (dragSlotId !== null) moveSlotTo(dragSlotId, dia as DiaSemana, null) }}
+                  onDragLeave={(e: React.DragEvent) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverDia(null) }}
+                  style={dragOverDia === dia && dragSlotId !== null && dragOverSlotId === null
+                    ? { outline: '2px dashed rgba(79,124,255,.35)', outlineOffset: 4, borderRadius: 8 }
+                    : undefined}
+                >
                   {daySlotList.length === 0
                     ? <span className="text-xs self-center" style={{ color: 'var(--text3)' }}>Sem blocos planejados</span>
                     : daySlotList.map(slot => {
@@ -230,15 +269,30 @@ export default function SemanaPage() {
                       const tc = TIPO_COLOR[slot.tipo]
                       return (
                         <div key={slot.id}
-                          className="group relative rounded-xl px-3 py-2 flex flex-col gap-1 sm:min-w-[140px] sm:max-w-[200px]"
-                          style={{ background: TIPO_BG[slot.tipo], border: `1px solid ${TIPO_BORDER[slot.tipo]}` }}>
+                          className={`group relative rounded-xl px-3 py-2 flex flex-col gap-1 sm:min-w-[140px] sm:max-w-[200px] transition-opacity ${dragSlotId === slot.id ? 'opacity-40' : ''} ${dragOverSlotId === slot.id ? 'ring-2 ring-[#4F7CFF]' : ''}`}
+                          style={{ background: TIPO_BG[slot.tipo], border: `1px solid ${TIPO_BORDER[slot.tipo]}` }}
+                          onDragOver={(e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setDragOverSlotId(slot.id); setDragOverDia(dia) }}
+                          onDragLeave={(e: React.DragEvent) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverSlotId(null) }}
+                          onDrop={(e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); if (dragSlotId !== null && dragSlotId !== slot.id) moveSlotTo(dragSlotId, dia as DiaSemana, slot.id); setDragOverSlotId(null) }}
+                        >
+                          {/* Grip handle */}
+                          <span
+                            draggable
+                            onDragStart={(e: React.DragEvent) => { e.stopPropagation(); setDragSlotId(slot.id) }}
+                            onDragEnd={() => { setDragSlotId(null); setDragOverSlotId(null); setDragOverDia(null) }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute top-1.5 left-1.5 cursor-grab active:cursor-grabbing w-4 h-4 flex items-center justify-center text-xs opacity-30 group-hover:opacity-70 transition-opacity select-none"
+                            style={{ color: TIPO_TEXT[slot.tipo] }}
+                            title="Arrastar bloco"
+                          >⠿</span>
+
                           <button
                             className="absolute top-1.5 right-1.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full flex items-center justify-center text-xs"
                             style={{ background: tc, color: '#fff' }}
                             onClick={() => launchTimerFromSlot(slot)}
                             title="Iniciar no timer">▶</button>
 
-                          <div className="text-xs font-bold truncate pr-8" style={{ color: TIPO_TEXT[slot.tipo] }}>{slot.matTxt || TIPO_LABEL[slot.tipo]}</div>
+                          <div className="text-xs font-bold truncate pl-3 pr-8" style={{ color: TIPO_TEXT[slot.tipo] }}>{slot.matTxt || TIPO_LABEL[slot.tipo]}</div>
                           {slot.cttTxt && <div className="text-xs truncate" style={{ color: TIPO_TEXT[slot.tipo], opacity: 0.75 }}>{slot.cttTxt}</div>}
 
                           <div className="flex items-center gap-1.5 flex-wrap">
