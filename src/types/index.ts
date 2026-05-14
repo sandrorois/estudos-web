@@ -28,9 +28,11 @@ export interface Materia {
 export interface SlotSemana {
   id: number
   dia: DiaSemana
-  date?: string         // YYYY-MM-DD — set for date-specific or recurring-from-date
-  recorrente?: boolean  // true = repeats weekly (requires date)
-  exceptions?: string[] // dates where a recurring slot is skipped
+  date?: string              // YYYY-MM-DD — set for date-specific or recurring-from-date
+  recorrente?: boolean       // true = repeats weekly (requires date)
+  recurrenceEndDate?: string // YYYY-MM-DD — exclusive: slot not shown on/after this date
+  exceptions?: string[]      // dates where a recurring slot is skipped
+  sourceSessionId?: number   // ID of the session that created this unplanned slot (dedup key)
   tipo: TipoBloco
   matId: number | null
   cttId: number | null

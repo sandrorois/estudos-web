@@ -6,7 +6,7 @@ import {
   loadUserData,
   materiaToRow, conteudoToRow, slotToRow, sessaoToRow, erroToRow,
 } from '../lib/db'
-import type { Materia, SlotSemana, Sessao, ErroRegistrado, StatusConteudo, Conteudo } from '../types'
+import type { Materia, SlotSemana, Sessao, ErroRegistrado, StatusConteudo, Conteudo, DiaSemana } from '../types'
 
 // Fire-and-forget Supabase write; logs errors to console
 function dbw(fn: () => PromiseLike<any>) {
@@ -83,6 +83,7 @@ interface AppState {
   cttDoneMin: (matId: number, cttId: number, pfx?: string) => number
   cttQuestoes: (matId: number, cttId: number, pfx?: string) => number
   matQuestoes: (matId: number, pfx?: string) => number
+  ensureSlotForSessao: (sess: Sessao) => void
 }
 
 export const useStore = create<AppState>()(
@@ -309,6 +310,56 @@ export const useStore = create<AppState>()(
         get().sessoes
           .filter(s => s.matId === matId && (!pfx || s.date.startsWith(pfx)))
           .reduce((a, s) => a + (s.questoesCount || 0), 0),
+
+      ensureSlotForSessao: (sess) => {
+        const { slots } = get()
+        // Dedup: already created a slot for this session
+        if (slots.some(sl => sl.sourceSessionId === sess.id)) return
+        // Compute day-of-week for the session date
+        const dk = sess.date
+        const dateObj = new Date(dk + 'T12:00:00')
+        const dowIdx = (dateObj.getDay() + 6) % 7 // Mon=0..Sun=6
+        const dias: DiaSemana[] = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo']
+        const dow = dias[dowIdx]
+        // Check if any existing slot covers this session on that date
+        const covered = slots.some(sl => {
+          const excs = sl.exceptions || []
+          if (excs.includes(dk)) return false
+          if (sl.recurrenceEndDate && dk >= sl.recurrenceEndDate) return false
+          let appearsOnDate: boolean
+          if (sl.date != null) {
+            appearsOnDate = sl.recorrente ? (sl.dia === dow && dk >= sl.date) : sl.date === dk
+          } else {
+            appearsOnDate = sl.dia === dow
+          }
+          if (!appearsOnDate) return false
+          if (sl.tipo !== sess.tipo) return false
+          if (sl.matId != null && sl.matId !== sess.matId) return false
+          if (sl.cttId != null && sl.cttId !== sess.cttId) return false
+          return true
+        })
+        if (covered) return
+        // Format duration as horas string
+        const durH = Math.floor(sess.durMin / 60)
+        const durM = sess.durMin % 60
+        const horas = durH > 0
+          ? (durM > 0 ? `${durH}h${String(durM).padStart(2, '0')}` : `${durH}h`)
+          : `${durM}min`
+        get().addSlot({
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          dia: dow,
+          date: dk,
+          tipo: sess.tipo,
+          matId: sess.matId,
+          cttId: sess.cttId,
+          matTxt: sess.materia,
+          cttTxt: sess.conteudo,
+          horas,
+          questoes: sess.questoes,
+          status: 2,
+          sourceSessionId: sess.id,
+        })
+      },
     }),
     {
       name: 'estudos-camara-theme',

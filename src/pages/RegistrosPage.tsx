@@ -6,7 +6,7 @@ import type { TipoBloco, Sessao } from '../types'
 import ManualSessionModal, { type ManualSaveData } from '../components/ManualSessionModal'
 
 export default function RegistrosPage() {
-  const { materias, sessoes, addSessao, updateSessao, deleteSessao } = useStore()
+  const { materias, sessoes, addSessao, updateSessao, deleteSessao, ensureSlotForSessao } = useStore()
 
   const [notif, setNotif] = useState('')
   const [showManual, setShowManual] = useState(false)
@@ -14,14 +14,16 @@ export default function RegistrosPage() {
   function saveManual(form: ManualSaveData) {
     const m = materias.find(x => String(x.id) === form.matId)
     const c = m?.conteudos.find(x => String(x.id) === form.cttId)
-    addSessao({
+    const newSess: Sessao = {
       id: Date.now(), date: form.data, tipo: form.tipo,
       matId: m?.id ?? null, cttId: c?.id ?? null,
       materia: m?.nome ?? '', conteudo: c?.nome ?? '',
       questoes: form.questoes, questoesCount: form.questoes ? form.qCount : 0,
       durMin: form.durMin, time: form.startTime,
       manual: true, obs: form.obs || undefined,
-    })
+    }
+    addSessao(newSess)
+    ensureSlotForSessao(newSess)
     setShowManual(false); setNotif('Sessão registrada!')
   }
   const [monthDate, setMonthDate] = useState(new Date())

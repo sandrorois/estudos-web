@@ -34,6 +34,9 @@ export default function SemanaPage() {
     action: 'edit' | 'delete'; slot: SlotSemana; date: Date
   } | null>(null)
 
+  // When editing "this and future weeks": track which slot to end when new slot is saved
+  const [splitSourceSlotId, setSplitSourceSlotId] = useState<number | null>(null)
+
   const weekDates = getWeekDates(weekOffset)
   const isCurrentWeek = weekOffset === 0
 
@@ -52,6 +55,8 @@ export default function SemanaPage() {
     const filtered = slots.filter(sl => {
       const excs = sl.exceptions || []
       if (excs.includes(dk)) return false
+      // recurrenceEndDate is exclusive — slot not shown from that date onwards
+      if (sl.recurrenceEndDate && dk >= sl.recurrenceEndDate) return false
       if (sl.date != null) {
         return sl.recorrente
           ? sl.dia === dow && dk >= sl.date
@@ -155,11 +160,27 @@ export default function SemanaPage() {
     setRecurringConfirm(null)
   }
 
-  function confirmAll() {
+  function confirmFromHere() {
     if (!recurringConfirm) return
-    const { action, slot } = recurringConfirm
-    if (action === 'delete') { deleteSlot(slot.id); setNotif('Bloco removido de todas as semanas.') }
-    else openEditDirect(slot)
+    const { action, slot, date } = recurringConfirm
+    const dk = dateKey(date)
+    if (action === 'delete') {
+      // End recurrence at dk — past weeks remain visible, future hidden
+      updateSlot(slot.id, { recurrenceEndDate: dk })
+      setNotif('Bloco removido desta e das próximas semanas.')
+    } else {
+      // Split: record which slot to end when the new slot is saved
+      setSplitSourceSlotId(slot.id)
+      setEditSlotId(null)
+      setSlotDay(date)
+      setSlotForm({
+        dia: slot.dia, tipo: slot.tipo,
+        matId: slot.matId ? String(slot.matId) : '',
+        cttId: slot.cttId ? String(slot.cttId) : '',
+        horas: slot.horas, questoes: slot.questoes, recorrente: true,
+      })
+      setShowSlot(true)
+    }
     setRecurringConfirm(null)
   }
 
@@ -176,9 +197,22 @@ export default function SemanaPage() {
       payload.date = dateKey(slotDay)
       if (slotForm.recorrente) payload.recorrente = true
     }
-    if (editSlotId) { updateSlot(editSlotId, payload); setNotif('Bloco atualizado!') }
-    else { addSlot({ id: Date.now(), ...payload }); setNotif('Bloco adicionado!') }
+    if (editSlotId) {
+      updateSlot(editSlotId, payload); setNotif('Bloco atualizado!')
+    } else {
+      addSlot({ id: Date.now(), ...payload }); setNotif('Bloco adicionado!')
+      // If this new slot resulted from splitting a recurring slot, end the old one
+      if (splitSourceSlotId != null && payload.date) {
+        updateSlot(splitSourceSlotId, { recurrenceEndDate: payload.date })
+        setSplitSourceSlotId(null)
+      }
+    }
     setShowSlot(false)
+  }
+
+  function closeSlotModal() {
+    setShowSlot(false)
+    setSplitSourceSlotId(null)
   }
 
   function dayStudiedMin(date: Date) {
@@ -344,7 +378,7 @@ export default function SemanaPage() {
       </div>
 
       {/* Modal: Bloco */}
-      <Modal open={showSlot} onClose={() => setShowSlot(false)} title={editSlotId ? 'Editar Bloco' : 'Adicionar Bloco'} maxWidth={440}>
+      <Modal open={showSlot} onClose={closeSlotModal} title={editSlotId ? 'Editar Bloco' : 'Adicionar Bloco'} maxWidth={440}>
         <div className="flex flex-col gap-3">
           {slotDay != null ? (
             <div className="text-xs px-3 py-2 rounded-lg" style={{ background: 'var(--surface2)', color: 'var(--text2)' }}>
@@ -392,7 +426,7 @@ export default function SemanaPage() {
           )}
         </div>
         <ModalFooter>
-          <Btn variant="ghost" onClick={() => setShowSlot(false)}>Cancelar</Btn>
+          <Btn variant="ghost" onClick={closeSlotModal}>Cancelar</Btn>
           <Btn variant="primary" onClick={saveSlot}>✓ Salvar</Btn>
         </ModalFooter>
       </Modal>
@@ -401,13 +435,20 @@ export default function SemanaPage() {
       <Modal open={recurringConfirm != null} onClose={() => setRecurringConfirm(null)}
         title={recurringConfirm?.action === 'delete' ? 'Remover bloco recorrente' : 'Editar bloco recorrente'}
         maxWidth={400}>
-        <p className="text-sm" style={{ color: 'var(--text2)' }}>
-          Este bloco se repete semanalmente. O que deseja {recurringConfirm?.action === 'delete' ? 'remover' : 'alterar'}?
-        </p>
+        <div className="flex flex-col gap-3">
+          <p className="text-sm" style={{ color: 'var(--text2)' }}>
+            Este bloco se repete semanalmente. O que deseja {recurringConfirm?.action === 'delete' ? 'remover' : 'alterar'}?
+          </p>
+          <p className="text-xs px-3 py-2 rounded-lg" style={{ color: 'var(--text3)', background: 'var(--surface2)' }}>
+            As semanas anteriores e os registros já feitos serão preservados.
+          </p>
+        </div>
         <ModalFooter>
           <Btn variant="ghost" onClick={() => setRecurringConfirm(null)}>Cancelar</Btn>
           <Btn variant="ghost" onClick={confirmOnlyThis}>Apenas este dia</Btn>
-          <Btn variant="primary" onClick={confirmAll}>Todas as semanas</Btn>
+          <Btn variant="primary" onClick={confirmFromHere}>
+            {recurringConfirm?.action === 'delete' ? 'Remover' : 'Modificar'} esta e as próximas semanas
+          </Btn>
         </ModalFooter>
       </Modal>
     </div>

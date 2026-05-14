@@ -18,6 +18,8 @@ const rowToSessao = (r: any): Sessao => ({
 const rowToSlot = (r: any): SlotSemana => ({
   id: r.id, dia: r.dia, date: r.date ?? undefined,
   recorrente: r.recorrente ?? undefined, exceptions: r.exceptions ?? undefined,
+  recurrenceEndDate: r.recurrence_end_date ?? undefined,
+  sourceSessionId: r.source_session_id ?? undefined,
   tipo: r.tipo, matId: r.mat_id, cttId: r.ctt_id,
   matTxt: r.mat_txt, cttTxt: r.ctt_txt,
   horas: r.horas, questoes: r.questoes, status: r.status,
@@ -36,13 +38,19 @@ export const materiaToRow = (m: Materia, uid: string) =>
 export const conteudoToRow = (c: Conteudo, matId: number, uid: string) =>
   ({ id: c.id, user_id: uid, materia_id: matId, nome: c.nome, meta_h: c.metaH, questoes: c.questoes, status: c.status })
 
-export const slotToRow = (s: SlotSemana, uid: string) => ({
-  id: s.id, user_id: uid, dia: s.dia, date: s.date ?? null,
-  recorrente: s.recorrente ?? false, exceptions: s.exceptions ?? [],
-  tipo: s.tipo, mat_id: s.matId, ctt_id: s.cttId,
-  mat_txt: s.matTxt, ctt_txt: s.cttTxt,
-  horas: s.horas, questoes: s.questoes, status: s.status,
-})
+export const slotToRow = (s: SlotSemana, uid: string) => {
+  const row: Record<string, any> = {
+    id: s.id, user_id: uid, dia: s.dia, date: s.date ?? null,
+    recorrente: s.recorrente ?? false, exceptions: s.exceptions ?? [],
+    tipo: s.tipo, mat_id: s.matId, ctt_id: s.cttId,
+    mat_txt: s.matTxt, ctt_txt: s.cttTxt,
+    horas: s.horas, questoes: s.questoes, status: s.status,
+  }
+  // Only include new optional columns when set (graceful for tables without the migration)
+  if (s.recurrenceEndDate != null) row.recurrence_end_date = s.recurrenceEndDate
+  if (s.sourceSessionId != null) row.source_session_id = s.sourceSessionId
+  return row
+}
 
 export const sessaoToRow = (s: Sessao, uid: string) => ({
   id: s.id, user_id: uid, date: s.date, tipo: s.tipo,

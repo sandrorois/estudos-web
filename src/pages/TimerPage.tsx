@@ -10,7 +10,7 @@ import ManualSessionModal, { type ManualSaveData } from '../components/ManualSes
 const CIRC = 502.7
 
 export default function TimerPage() {
-  const { materias, sessoes, addSessao, updateSessao, deleteSessao, todaySessoes, pendingSessId, setPendingSessId } = useStore()
+  const { materias, sessoes, addSessao, updateSessao, deleteSessao, todaySessoes, pendingSessId, setPendingSessId, ensureSlotForSessao } = useStore()
   const timer = useTimer()
 
   const [notif, setNotif] = useState('')
@@ -112,6 +112,7 @@ export default function TimerPage() {
       durMin: cfg.duracaoMin, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
     }
     addSessao(newSess)
+    useStore.getState().ensureSlotForSessao(newSess)
     setPendingSessId(newSess.id)
     cancelTimerNotifications()
     useTimer.getState().reset()
@@ -171,6 +172,7 @@ export default function TimerPage() {
       early: true,
     }
     addSessao(newSess)
+    ensureSlotForSessao(newSess)
     setPendingSessId(newSess.id)
     playAlert(false)
     useTimer.getState().setAlertVisible(true)
@@ -237,14 +239,16 @@ export default function TimerPage() {
   function saveManual(form: ManualSaveData) {
     const m = materias.find(x => String(x.id) === form.matId)
     const c = m?.conteudos.find(x => String(x.id) === form.cttId)
-    addSessao({
+    const newSess: Sessao = {
       id: Date.now(), date: form.data, tipo: form.tipo,
       matId: m?.id ?? null, cttId: c?.id ?? null,
       materia: m?.nome ?? '', conteudo: c?.nome ?? '',
       questoes: form.questoes, questoesCount: form.questoes ? form.qCount : 0,
       durMin: form.durMin, time: form.startTime,
       manual: true, obs: form.obs || undefined,
-    })
+    }
+    addSessao(newSess)
+    ensureSlotForSessao(newSess)
     setShowManual(false); notify('Sessão registrada!')
   }
 

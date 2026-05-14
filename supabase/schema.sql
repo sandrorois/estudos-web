@@ -69,3 +69,8 @@ create table erros (
 );
 alter table erros enable row level security;
 create policy "own" on erros for all using (auth.uid() = user_id);
+
+-- ─── Migration: recurring end date + unplanned session slot tracking ──────────
+-- Run these ALTER TABLE statements in the Supabase SQL Editor if not yet applied.
+alter table slots_semana add column if not exists recurrence_end_date date;
+alter table slots_semana add column if not exists source_session_id bigint;
