@@ -132,22 +132,22 @@ export function PBar({ pct, color = '#4F7CFF', height = 5 }: { pct: number; colo
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
-export function Modal({ open, onClose, title, children, maxWidth = 480 }: {
-  open: boolean; onClose: () => void; title?: string; children: React.ReactNode; maxWidth?: number
+export function Modal({ open, onClose, title, children, maxWidth = 480, closeOnBackdrop = true }: {
+  open: boolean; onClose: () => void; title?: string; children: React.ReactNode; maxWidth?: number; closeOnBackdrop?: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    if (!open) return
+    if (!open || !closeOnBackdrop) return
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [open, onClose])
+  }, [open, onClose, closeOnBackdrop])
 
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
          style={{ background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(6px)' }}
-         onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
+         onClick={(e) => { if (closeOnBackdrop && e.target === e.currentTarget) onClose() }}>
       <div ref={ref} className="w-full rounded-2xl p-6 max-h-[90vh] overflow-y-auto"
            style={{ maxWidth, background: 'var(--surface)', border: '1px solid var(--border2)', boxShadow: '0 24px 64px rgba(0,0,0,.55)', animation: 'fadeIn .18s ease' }}>
         {title && (

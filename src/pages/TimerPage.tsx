@@ -22,6 +22,7 @@ export default function TimerPage() {
   const [qCount, setQCount] = useState('')
   const [qObs, setQObs] = useState('')
   const [alertObs, setAlertObs] = useState('')
+  const [alertEndTime, setAlertEndTime] = useState('')
   const [editingSessId, setEditingSessId] = useState<number | null>(null)
 
   // Timer config local state — init from config so navigating from SemanaPage pre-fills
@@ -105,15 +106,17 @@ export default function TimerPage() {
   // Callbacks when timer ends
   const onStudyEnd = useCallback(() => {
     const cfg = useTimer.getState().config
+    const endTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     const newSess: Sessao = {
       id: Date.now(), date: today(), tipo: cfg.tipo,
       matId: cfg.matId, cttId: cfg.cttId, materia: cfg.materia, conteudo: cfg.conteudo,
       questoes: cfg.questoes, questoesCount: 0,
-      durMin: cfg.duracaoMin, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      durMin: cfg.duracaoMin, time: endTime,
     }
     addSessao(newSess)
     useStore.getState().ensureSlotForSessao(newSess)
     setPendingSessId(newSess.id)
+    setAlertEndTime(endTime)
     cancelTimerNotifications()
     useTimer.getState().reset()
     useTimer.getState().setAlertVisible(true)
@@ -143,8 +146,11 @@ export default function TimerPage() {
   }
 
   function dismissAlert() {
-    if (alertObs.trim() && pendingSessId) {
-      updateSessao(pendingSessId, { obs: alertObs.trim() })
+    if (pendingSessId) {
+      const patch: Partial<Sessao> = {}
+      if (alertObs.trim()) patch.obs = alertObs.trim()
+      if (!alertIsBreak && alertEndTime) patch.time = alertEndTime
+      if (Object.keys(patch).length) updateSessao(pendingSessId, patch)
     }
     setPendingSessId(null)
     setShowAlert(false)
@@ -152,8 +158,11 @@ export default function TimerPage() {
   }
 
   function alertStartBreak() {
-    if (alertObs.trim() && pendingSessId) {
-      updateSessao(pendingSessId, { obs: alertObs.trim() })
+    if (pendingSessId) {
+      const patch: Partial<Sessao> = {}
+      if (alertObs.trim()) patch.obs = alertObs.trim()
+      if (alertEndTime) patch.time = alertEndTime
+      if (Object.keys(patch).length) updateSessao(pendingSessId, patch)
     }
     setPendingSessId(null)
     setShowAlert(false)
@@ -164,16 +173,18 @@ export default function TimerPage() {
   function handleSaveEarly() {
     cancelTimerNotifications()
     const { config, elapsedMin } = timer.saveEarly()
+    const endTime = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
     const newSess: Sessao = {
       id: Date.now(), date: today(), tipo: config.tipo,
       matId: config.matId, cttId: config.cttId, materia: config.materia, conteudo: config.conteudo,
       questoes: config.questoes, questoesCount: 0,
-      durMin: elapsedMin, time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      durMin: elapsedMin, time: endTime,
       early: true,
     }
     addSessao(newSess)
     ensureSlotForSessao(newSess)
     setPendingSessId(newSess.id)
+    setAlertEndTime(endTime)
     playAlert(false)
     useTimer.getState().setAlertVisible(true)
     if (config.questoes) {
@@ -355,7 +366,7 @@ export default function TimerPage() {
             <CardTitle>sessões de hoje</CardTitle>
             <div className="flex gap-2">
               <Btn size="sm" variant="ghost" onClick={() => setShowManual(true)}>✏ Registrar manualmente</Btn>
-              <Btn size="sm" variant="ghost" onClick={() => { ts.forEach(s => deleteSessao(s.id)) }}>limpar</Btn>
+              <Btn size="sm" variant="ghost" onClick={() => { if (confirm('Excluir todas as sessões de hoje?')) ts.forEach(s => deleteSessao(s.id)) }}>limpar</Btn>
             </div>
           </div>
           {ts.length === 0 ? <Empty>Nenhuma sessão registrada hoje. Configure e inicie sua primeira sessão.</Empty> : (
@@ -376,7 +387,7 @@ export default function TimerPage() {
                     )}
                     <span className="font-mono text-xs shrink-0" style={{ color: 'var(--text3)' }}>{s.durMin}min·{s.time}</span>
                     <Btn size="icon" variant="ghost" onClick={() => openEdit(s)}>✏</Btn>
-                    <Btn size="icon" variant="ghost" onClick={() => deleteSessao(s.id)} style={{ color: '#FF5A5A' }}>✕</Btn>
+                    <Btn size="icon" variant="ghost" onClick={() => { if (confirm('Excluir esta sessão?')) deleteSessao(s.id) }} style={{ color: '#FF5A5A' }}>✕</Btn>
                   </div>
                   {s.obs && (
                     <div className="ml-7 text-xs italic px-2 py-1 rounded" style={{ color: 'var(--text3)', background: 'var(--surface2)', borderLeft: '2px solid var(--border2)' }}>
@@ -399,7 +410,7 @@ export default function TimerPage() {
       </div>
 
       {/* Modal: questões */}
-      <Modal open={showQuestoes} onClose={() => setShowQuestoes(false)} maxWidth={400}>
+      <Modal open={showQuestoes} onClose={() => setShowQuestoes(false)} maxWidth={400} closeOnBackdrop={false}>
         <div className="text-center mb-4"><span className="text-5xl">📝</span></div>
         <h2 className="font-serif text-xl text-center mb-2" style={{ color: 'var(--text)' }}>Sessão concluída!</h2>
         <p className="text-xs text-center mb-5 px-3 py-2 rounded-lg" style={{ color: 'var(--text2)', background: 'var(--surface2)' }}>
@@ -430,10 +441,16 @@ export default function TimerPage() {
             <h2 className="font-serif text-2xl mb-2" style={{ color: 'var(--text)' }}>{alertIsBreak?'Pausa concluída!':'Sessão concluída!'}</h2>
             <p className="text-sm mb-5" style={{ color: 'var(--text2)' }}>{alertIsBreak?'Descansada e pronta? Bora estudar!':'Ótimo trabalho! O que deseja fazer?'}</p>
             {!alertIsBreak && (
-              <div className="mb-5 text-left">
-                <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text2)' }}>Observação da sessão</label>
-                <textarea value={alertObs} onChange={e => setAlertObs(e.target.value)} rows={2} placeholder="Como foi? O que ficou pendente?"
-                  className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-none" style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)', fontFamily: 'inherit' }} />
+              <div className="mb-5 text-left flex flex-col gap-3">
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text2)' }}>Horário fim</label>
+                  <Input type="time" value={alertEndTime} onChange={e => setAlertEndTime(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text2)' }}>Observação da sessão</label>
+                  <textarea value={alertObs} onChange={e => setAlertObs(e.target.value)} rows={2} placeholder="Como foi? O que ficou pendente?"
+                    className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-none" style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)', fontFamily: 'inherit' }} />
+                </div>
               </div>
             )}
             <div className="flex gap-3 justify-center flex-wrap">
