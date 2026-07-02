@@ -9,6 +9,15 @@ import ManualSessionModal, { type ManualSaveData } from '../components/ManualSes
 
 const CIRC = 502.7
 
+function timeToMin(t: string) {
+  const [h, m] = t.split(':').map(Number)
+  return h * 60 + m
+}
+function minToTime(min: number) {
+  const m = ((min % 1440) + 1440) % 1440
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+}
+
 export default function TimerPage() {
   const { materias, sessoes, addSessao, updateSessao, deleteSessao, todaySessoes, pendingSessId, setPendingSessId, ensureSlotForSessao } = useStore()
   const timer = useTimer()
@@ -23,6 +32,7 @@ export default function TimerPage() {
   const [qObs, setQObs] = useState('')
   const [alertObs, setAlertObs] = useState('')
   const [alertEndTime, setAlertEndTime] = useState('')
+  const [alertStartTime, setAlertStartTime] = useState('')
   const [editingSessId, setEditingSessId] = useState<number | null>(null)
 
   // Timer config local state — init from config so navigating from SemanaPage pre-fills
@@ -117,6 +127,7 @@ export default function TimerPage() {
     useStore.getState().ensureSlotForSessao(newSess)
     setPendingSessId(newSess.id)
     setAlertEndTime(endTime)
+    setAlertStartTime(minToTime(timeToMin(endTime) - cfg.duracaoMin))
     cancelTimerNotifications()
     useTimer.getState().reset()
     useTimer.getState().setAlertVisible(true)
@@ -145,11 +156,15 @@ export default function TimerPage() {
     useTimer.getState().setAlertVisible(true)
   }
 
+  function endTimePatch(): Partial<Sessao> {
+    if (alertIsBreak || !alertEndTime || !alertStartTime) return {}
+    return { time: alertEndTime, durMin: Math.max(1, timeToMin(alertEndTime) - timeToMin(alertStartTime) + (timeToMin(alertEndTime) < timeToMin(alertStartTime) ? 1440 : 0)) }
+  }
+
   function dismissAlert() {
     if (pendingSessId) {
-      const patch: Partial<Sessao> = {}
+      const patch: Partial<Sessao> = { ...endTimePatch() }
       if (alertObs.trim()) patch.obs = alertObs.trim()
-      if (!alertIsBreak && alertEndTime) patch.time = alertEndTime
       if (Object.keys(patch).length) updateSessao(pendingSessId, patch)
     }
     setPendingSessId(null)
@@ -159,9 +174,8 @@ export default function TimerPage() {
 
   function alertStartBreak() {
     if (pendingSessId) {
-      const patch: Partial<Sessao> = {}
+      const patch: Partial<Sessao> = { ...endTimePatch() }
       if (alertObs.trim()) patch.obs = alertObs.trim()
-      if (alertEndTime) patch.time = alertEndTime
       if (Object.keys(patch).length) updateSessao(pendingSessId, patch)
     }
     setPendingSessId(null)
@@ -185,6 +199,7 @@ export default function TimerPage() {
     ensureSlotForSessao(newSess)
     setPendingSessId(newSess.id)
     setAlertEndTime(endTime)
+    setAlertStartTime(minToTime(timeToMin(endTime) - elapsedMin))
     playAlert(false)
     useTimer.getState().setAlertVisible(true)
     if (config.questoes) {
@@ -445,6 +460,11 @@ export default function TimerPage() {
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text2)' }}>Horário fim</label>
                   <Input type="time" value={alertEndTime} onChange={e => setAlertEndTime(e.target.value)} />
+                  {alertStartTime && alertEndTime && (
+                    <p className="text-xs mt-1.5" style={{ color: 'var(--text3)' }}>
+                      Início: {alertStartTime} · Duração: {Math.max(1, timeToMin(alertEndTime) - timeToMin(alertStartTime) + (timeToMin(alertEndTime) < timeToMin(alertStartTime) ? 1440 : 0))}min
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text2)' }}>Observação da sessão</label>
