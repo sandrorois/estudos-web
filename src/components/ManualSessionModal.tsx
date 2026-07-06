@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Btn, FG, Input, Select, Toggle, Modal, ModalFooter } from './ui'
-import { TIPO_LABEL, today } from '../lib/constants'
+import { TIPO_LABEL, today, monthPfx, materiasDoMes } from '../lib/constants'
 import type { Materia, TipoBloco } from '../types'
 
 interface ManualForm {
@@ -85,7 +85,9 @@ export default function ManualSessionModal({ open, onClose, onSave, materias, no
     onSave({ ...f, durMin })
   }
 
-  const matObj = materias.find(m => String(m.id) === f.matId)
+  // Escopa a lista de matérias pelo mês da data escolhida (evita duplicatas de outros meses)
+  const scopedMaterias = materiasDoMes(materias, monthPfx(new Date(`${f.data || today()}T12:00:00`)))
+  const matObj = scopedMaterias.find(m => String(m.id) === f.matId)
 
   return (
     <Modal open={open} onClose={onClose} title="✏ Registrar sessão manualmente" maxWidth={480}>
@@ -125,7 +127,7 @@ export default function ManualSessionModal({ open, onClose, onSave, materias, no
           <FG label="Matéria">
             <Select value={f.matId} onChange={e => setF(x => ({ ...x, matId: e.target.value, cttId: '' }))}>
               <option value="">— sem matéria —</option>
-              {materias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              {scopedMaterias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
             </Select>
           </FG>
         </div>

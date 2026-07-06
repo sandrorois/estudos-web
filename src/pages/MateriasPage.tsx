@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../store/app'
 import { Card, Btn, FG, Select, Input, Toggle, Modal, ModalFooter, Notif, Empty, SectionHeader, StatusPill, PBar } from '../components/ui'
-import { CATALOGO, TIPO_LABEL, TIPO_COLOR, monthPfx, MESES_PT } from '../lib/constants'
+import { CATALOGO, TIPO_LABEL, TIPO_COLOR, monthPfx, MESES_PT, materiasDoMes } from '../lib/constants'
 import { EDITAIS_PREDEFINIDOS } from '../lib/editalCatalog'
 import type { TipoBloco, StatusConteudo, Materia, Conteudo } from '../types'
 
@@ -49,8 +49,6 @@ export default function MateriasPage() {
   const [dragOverMatId, setDragOverMatId] = useState<number | null>(null)
 
   const pfx = monthPfx(monthDate)
-  const currentPfx = monthPfx(new Date())
-  const isCurrentMonth = pfx === currentPfx
 
   function prevMonth() { const d = new Date(monthDate); d.setMonth(d.getMonth() - 1); setMonthDate(d) }
   function nextMonth() { const d = new Date(monthDate); d.setMonth(d.getMonth() + 1); setMonthDate(d) }
@@ -70,7 +68,7 @@ export default function MateriasPage() {
 
   // Matérias do mês: month-specific + legacy, sorted by saved matOrder
   const monthMaterias = (() => {
-    const filtered = materias.filter(m => m.month === pfx || (isCurrentMonth && !m.month))
+    const filtered = materiasDoMes(materias, pfx)
     if (matOrder.length === 0) return filtered
     return [...filtered].sort((a, b) => {
       const ia = matOrder.indexOf(a.id)
@@ -89,7 +87,11 @@ export default function MateriasPage() {
 
   function copyFromPrevMonth() {
     if (prevMonthMaterias.length === 0) return
-    prevMonthMaterias.forEach((mat, i) => {
+    const toCopy = prevMonthMaterias.filter(mat =>
+      !monthMaterias.some(em => normalizeName(em.nome) === normalizeName(mat.nome))
+    )
+    const skipped = prevMonthMaterias.length - toCopy.length
+    toCopy.forEach((mat, i) => {
       const newId = Date.now() + i
       addMateria({
         id: newId,
@@ -100,7 +102,10 @@ export default function MateriasPage() {
         conteudos: mat.conteudos.map((c, j) => ({ ...c, id: newId * 100 + j, status: 0 as StatusConteudo })),
       })
     })
-    setNotif(`${prevMonthMaterias.length} matéria(s) copiada(s) de ${MESES_PT[prevDate.getMonth()]}!`)
+    const parts: string[] = []
+    if (toCopy.length > 0) parts.push(`${toCopy.length} matéria(s) copiada(s) de ${MESES_PT[prevDate.getMonth()]}`)
+    if (skipped > 0) parts.push(`${skipped} já existia(m) e foi(ram) ignorada(s)`)
+    setNotif(parts.length ? `${parts.join(', ')}.` : 'Todas as matérias já estavam copiadas.')
   }
 
   function openNewMat() { setEditMatId(null); setMatForm({ nome: '', tipo: 'base', prioridade: 'media' }); setMatCatalogSel(''); setShowMat(true) }
@@ -132,12 +137,15 @@ export default function MateriasPage() {
   }
   function openEditMat(m: Materia) { setEditMatId(m.id); setMatForm({ nome: m.nome, tipo: m.tipo, prioridade: m.prioridade }); setShowMat(true) }
   function saveMat() {
-    if (!matForm.nome.trim()) { setNotif('Informe o nome da matéria.'); return }
+    const nome = matForm.nome.trim()
+    if (!nome) { setNotif('Informe o nome da matéria.'); return }
+    const duplicate = monthMaterias.some(m => m.id !== editMatId && normalizeName(m.nome) === normalizeName(nome))
+    if (duplicate) { setNotif('Já existe uma matéria com esse nome neste mês.'); return }
     if (editMatId) {
-      updateMateria(editMatId, matForm)
+      updateMateria(editMatId, { ...matForm, nome })
       setNotif('Matéria atualizada!')
     } else {
-      addMateria({ id: Date.now(), nome: matForm.nome.trim(), tipo: matForm.tipo, prioridade: matForm.prioridade, month: pfx, conteudos: [] })
+      addMateria({ id: Date.now(), nome, tipo: matForm.tipo, prioridade: matForm.prioridade, month: pfx, conteudos: [] })
       setNotif('Matéria adicionada!')
     }
     setShowMat(false)

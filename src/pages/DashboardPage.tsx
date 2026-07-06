@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { useStore } from '../store/app'
 import { StatCard, SectionHeader, PBar, StatusPill } from '../components/ui'
-import { TIPO_COLOR, TIPO_LABEL, MESES_PT, monthPfx, fmtHShort } from '../lib/constants'
+import { TIPO_COLOR, TIPO_LABEL, MESES_PT, monthPfx, fmtHShort, dateKey } from '../lib/constants'
 import type { TipoBloco, StatusConteudo } from '../types'
 
 function last14Days(): string[] {
   const days: string[] = []
   for (let i = 13; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i)
-    days.push(d.toISOString().slice(0, 10))
+    days.push(dateKey(d))
   }
   return days
 }

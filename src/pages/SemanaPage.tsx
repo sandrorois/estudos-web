@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/app'
 import { useTimer } from '../store/timer'
 import { Card, Btn, FG, Select, Input, Toggle, Modal, ModalFooter, Notif, SectionHeader, StatusPill } from '../components/ui'
-import { DIAS_SEMANA, TIPO_LABEL, TIPO_COLOR, TIPO_BG, TIPO_BORDER, TIPO_TEXT, getWeekDates, dateKey, MESES_PT_SHORT, fmtHShort } from '../lib/constants'
+import { DIAS_SEMANA, TIPO_LABEL, TIPO_COLOR, TIPO_BG, TIPO_BORDER, TIPO_TEXT, getWeekDates, dateKey, MESES_PT_SHORT, fmtHShort, monthPfx, materiasDoMes } from '../lib/constants'
 import type { TipoBloco, SlotSemana, DiaSemana } from '../types'
 
 function dowIndex(d: Date) { return (d.getDay() + 6) % 7 } // Mon=0 … Sun=6
@@ -39,6 +39,9 @@ export default function SemanaPage() {
 
   const weekDates = getWeekDates(weekOffset)
   const isCurrentWeek = weekOffset === 0
+
+  // Matérias visíveis no mês do bloco sendo criado/editado (evita duplicatas de outros meses)
+  const slotMateriasList = materiasDoMes(materias, monthPfx(slotDay ?? weekDates[0]))
 
   function weekLabel() {
     const s = weekDates[0], e = weekDates[6]
@@ -185,7 +188,7 @@ export default function SemanaPage() {
   }
 
   function saveSlot() {
-    const mat = materias.find(m => String(m.id) === slotForm.matId)
+    const mat = slotMateriasList.find(m => String(m.id) === slotForm.matId)
     const ctt = mat?.conteudos.find(c => String(c.id) === slotForm.cttId)
     const payload: Omit<SlotSemana, 'id'> = {
       dia: slotForm.dia, tipo: slotForm.tipo,
@@ -238,7 +241,7 @@ export default function SemanaPage() {
     ).reduce((a, s) => a + (s.questoesCount || 0), 0)
   }
 
-  const slotMatObj = materias.find(m => String(m.id) === slotForm.matId)
+  const slotMatObj = slotMateriasList.find(m => String(m.id) === slotForm.matId)
 
   return (
     <div className="pt-6 flex flex-col gap-4">
@@ -399,7 +402,7 @@ export default function SemanaPage() {
           <FG label="Matéria">
             <Select value={slotForm.matId} onChange={e => setSlotForm(f => ({ ...f, matId: e.target.value, cttId: '' }))}>
               <option value="">— sem matéria —</option>
-              {materias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              {slotMateriasList.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
             </Select>
           </FG>
           {slotMatObj && (

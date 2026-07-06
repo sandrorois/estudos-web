@@ -129,8 +129,17 @@ export const DEF_SEMANA: SlotSemana[] = [
 ]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-export const today = () => new Date().toISOString().slice(0,10)
+// Data local (YYYY-MM-DD) — NÃO usar toISOString() aqui: converte pra UTC e
+// "pula" pro dia seguinte à noite em fusos atrás de UTC (ex: Brasil, UTC-3).
+export const dateKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+export const today = () => dateKey(new Date())
 export const monthPfx = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+
+// Matérias visíveis num mês: as marcadas com esse mês + legadas (sem month) quando o mês é o atual
+export function materiasDoMes(materias: Materia[], pfx: string): Materia[] {
+  const isCurrent = pfx === monthPfx()
+  return materias.filter(m => m.month === pfx || (isCurrent && !m.month))
+}
 
 export function fmtSecs(s: number) {
   return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`
@@ -149,7 +158,6 @@ export function getWeekDates(offset = 0): Date[] {
   const mon = new Date(d); mon.setDate(diff)
   return Array.from({length:7}, (_,i) => { const x = new Date(mon); x.setDate(mon.getDate()+i); return x })
 }
-export const dateKey = (d: Date) => d.toISOString().slice(0,10)
 
 export function playAlert(isBreak: boolean) {
   try {

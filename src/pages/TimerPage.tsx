@@ -3,7 +3,7 @@ import { useStore } from '../store/app'
 import { supabase } from '../lib/supabase'
 import { useTimer } from '../store/timer'
 import { Card, CardTitle, StatCard, Btn, FG, Select, Input, Toggle, Modal, ModalFooter, Notif, Empty } from '../components/ui'
-import { TIPO_LABEL, TIPO_COLOR, today, monthPfx, fmtH, fmtHShort, playAlert } from '../lib/constants'
+import { TIPO_LABEL, TIPO_COLOR, today, monthPfx, fmtH, fmtHShort, playAlert, materiasDoMes, dateKey } from '../lib/constants'
 import type { Sessao, TipoBloco } from '../types'
 import ManualSessionModal, { type ManualSaveData } from '../components/ManualSessionModal'
 
@@ -44,6 +44,9 @@ export default function TimerPage() {
     const cfg = useTimer.getState().config
     return cfg.cttId ? String(cfg.cttId) : ''
   })
+
+  // Matérias visíveis no mês corrente (evita duplicatas de matérias de meses passados)
+  const sessionMaterias = materiasDoMes(materias, monthPfx())
 
   const notify = (msg: string) => setNotif(msg)
 
@@ -228,12 +231,12 @@ export default function TimerPage() {
   // Sync materia/conteudo selects → timer config
   function onMatChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const val = e.target.value; setMatSel(val); setCttSel('')
-    const m = materias.find(x => String(x.id) === val)
+    const m = sessionMaterias.find(x => String(x.id) === val)
     timer.setConfig({ matId: m?.id ?? null, materia: m?.nome ?? '', cttId: null, conteudo: '', tipo: m?.tipo ?? timer.config.tipo })
   }
   function onCttChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const val = e.target.value; setCttSel(val)
-    const m = materias.find(x => String(x.id) === matSel)
+    const m = sessionMaterias.find(x => String(x.id) === matSel)
     const c = m?.conteudos.find(x => String(x.id) === val)
     timer.setConfig({ cttId: c?.id ?? null, conteudo: c?.nome ?? '', questoes: c?.questoes ?? timer.config.questoes })
   }
@@ -241,13 +244,13 @@ export default function TimerPage() {
   // Metrics
   const ts = todaySessoes()
   const todayMin = ts.reduce((a,s) => a + s.durMin, 0)
-  const weekStart = (() => { const d = new Date(); const wd = d.getDay(); const diff = d.getDate()-(wd===0?6:wd-1); const m = new Date(d); m.setDate(diff); return m.toISOString().slice(0,10) })()
+  const weekStart = (() => { const d = new Date(); const wd = d.getDay(); const diff = d.getDate()-(wd===0?6:wd-1); const m = new Date(d); m.setDate(diff); return dateKey(m) })()
   const weekMin = sessoes.filter(s => s.date >= weekStart).reduce((a,s) => a+s.durMin, 0)
   const mPfx = monthPfx()
   const monthMin = sessoes.filter(s => s.date.startsWith(mPfx)).reduce((a,s) => a+s.durMin, 0)
   const todayQ = ts.reduce((a,s) => a+(s.questoesCount||0), 0)
 
-  const matObj = materias.find(m => String(m.id) === matSel)
+  const matObj = sessionMaterias.find(m => String(m.id) === matSel)
   const tipoColor = TIPO_COLOR[timer.config.tipo]
   const phaseLabel = { idle: 'aguardando', study: 'em andamento', paused: 'pausado', 'break-idle': 'sessão concluída', break: 'pausa ativa', done: 'concluído' }[timer.phase]
   const canStart = timer.phase === 'idle' || timer.phase === 'paused' || timer.phase === 'break-idle' || timer.phase === 'done'
@@ -312,7 +315,7 @@ export default function TimerPage() {
             <FG label="Matéria">
               <Select value={matSel} onChange={onMatChange}>
                 <option value="">— selecione —</option>
-                {materias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                {sessionMaterias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
               </Select>
             </FG>
             <FG label="Conteúdo">
@@ -491,7 +494,9 @@ export default function TimerPage() {
 
       {/* Modal: editar sessão */}
       <Modal open={showEditSess} onClose={() => setShowEditSess(false)} title="✏ Editar sessão" maxWidth={480}>
-        {editForm && (
+        {editForm && (() => {
+          const editMaterias = materiasDoMes(materias, editForm.date ? monthPfx(new Date(editForm.date + 'T12:00:00')) : monthPfx())
+          return (
           <div className="flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-3">
               <FG label="Data"><Input type="date" value={editForm.date||''} onChange={e => setEditForm(f=>({...f,date:e.target.value}))} /></FG>
@@ -503,9 +508,9 @@ export default function TimerPage() {
                 {Object.entries(TIPO_LABEL).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
               </Select></FG>
             </div>
-            <FG label="Matéria"><Select value={editForm.matId?String(editForm.matId):''} onChange={e => { const m=materias.find(x=>String(x.id)===e.target.value); setEditForm(f=>({...f,matId:m?.id??null,materia:m?.nome??'',cttId:null,conteudo:''})) }}>
+            <FG label="Matéria"><Select value={editForm.matId?String(editForm.matId):''} onChange={e => { const m=editMaterias.find(x=>String(x.id)===e.target.value); setEditForm(f=>({...f,matId:m?.id??null,materia:m?.nome??'',cttId:null,conteudo:''})) }}>
               <option value="">— sem matéria —</option>
-              {materias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              {editMaterias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
             </Select></FG>
             <FG label="Questões feitas">
               <div className="flex items-center gap-4">
@@ -515,7 +520,8 @@ export default function TimerPage() {
             </FG>
             <FG label="Observação"><textarea value={editForm.obs||''} onChange={e => setEditForm(f=>({...f,obs:e.target.value}))} rows={2} className="w-full rounded-lg px-3 py-2 text-sm outline-none resize-y" style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', fontFamily:'inherit' }} /></FG>
           </div>
-        )}
+          )
+        })()}
         <ModalFooter>
           <Btn variant="ghost" onClick={() => setShowEditSess(false)}>Cancelar</Btn>
           <Btn variant="primary" onClick={saveEdit}>✓ Salvar</Btn>

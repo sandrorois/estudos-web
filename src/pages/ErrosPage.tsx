@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../store/app'
 import { Card, Btn, FG, Select, Textarea, Input, Modal, ModalFooter, Notif, SectionHeader, Empty } from '../components/ui'
-import { today } from '../lib/constants'
+import { today, monthPfx, materiasDoMes } from '../lib/constants'
 import type { ErroRegistrado } from '../types'
 
 export default function ErrosPage() {
@@ -40,7 +40,8 @@ export default function ErrosPage() {
   })
 
   const matOptions = [...new Set(erros.map(e => e.materia).filter(Boolean))]
-  const selectedMatConteudos = materias.find(m => m.nome === form.materia)?.conteudos ?? []
+  const formMateriasList = materiasDoMes(materias, monthPfx(new Date(`${form.data || today()}T12:00:00`)))
+  const selectedMatConteudos = formMateriasList.find(m => m.nome === form.materia)?.conteudos ?? []
 
   return (
     <div className="pt-6 flex flex-col gap-5">
@@ -132,7 +133,7 @@ export default function ErrosPage() {
             <FG label="Matéria">
               <Select value={form.materia} onChange={e => setForm(f => ({ ...f, materia: e.target.value, conteudo: '' }))}>
                 <option value="">— selecione —</option>
-                {materias.map(m => <option key={m.id} value={m.nome}>{m.nome}</option>)}
+                {formMateriasList.map(m => <option key={m.id} value={m.nome}>{m.nome}</option>)}
               </Select>
             </FG>
           </div>

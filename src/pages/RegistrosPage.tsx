@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../store/app'
 import { Btn, FG, Input, Select, Toggle, Modal, ModalFooter, Notif, SectionHeader, Empty } from '../components/ui'
-import { TIPO_LABEL, TIPO_COLOR, monthPfx, MESES_PT, fmtHShort } from '../lib/constants'
+import { TIPO_LABEL, TIPO_COLOR, monthPfx, MESES_PT, fmtHShort, materiasDoMes } from '../lib/constants'
 import type { TipoBloco, Sessao } from '../types'
 import ManualSessionModal, { type ManualSaveData } from '../components/ManualSessionModal'
 
@@ -34,6 +34,7 @@ export default function RegistrosPage() {
   const [editId, setEditId] = useState<number | null>(null)
 
   const pfx = monthPfx(monthDate)
+  const monthMaterias = materiasDoMes(materias, pfx)
 
   function prevMonth() { const d = new Date(monthDate); d.setMonth(d.getMonth() - 1); setMonthDate(d) }
   function nextMonth() { const d = new Date(monthDate); d.setMonth(d.getMonth() + 1); setMonthDate(d) }
@@ -79,7 +80,8 @@ export default function RegistrosPage() {
     return `${day}/${m}/${y}`
   }
 
-  const editMatObj = materias.find(m => String(m.id) === String(editForm.matId))
+  const editMaterias = materiasDoMes(materias, editForm.date ? monthPfx(new Date(`${editForm.date}T12:00:00`)) : pfx)
+  const editMatObj = editMaterias.find(m => String(m.id) === String(editForm.matId))
 
   return (
     <div className="pt-6 flex flex-col gap-5">
@@ -103,7 +105,7 @@ export default function RegistrosPage() {
               className="text-xs rounded-lg px-2 py-1.5 outline-none"
               style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text2)' }}>
               <option value="">Todas as matérias</option>
-              {materias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              {monthMaterias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
             </select>
           </>
         }
@@ -197,11 +199,11 @@ export default function RegistrosPage() {
             </div>
             <FG label="Matéria">
               <Select value={editForm.matId ? String(editForm.matId) : ''} onChange={e => {
-                const m = materias.find(x => String(x.id) === e.target.value)
+                const m = editMaterias.find(x => String(x.id) === e.target.value)
                 setEditForm(f => ({ ...f, matId: m?.id ?? null, materia: m?.nome ?? '', cttId: null, conteudo: '' }))
               }}>
                 <option value="">— sem matéria —</option>
-                {materias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                {editMaterias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
               </Select>
             </FG>
             {editMatObj && (

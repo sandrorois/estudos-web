@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../store/app'
 import { Btn, FG, Input, Select, Toggle, Textarea, Modal, ModalFooter, Notif, SectionHeader, PBar, StatusPill } from '../components/ui'
-import { MESES_PT, DIAS_SEMANA, TIPO_COLOR, TIPO_LABEL, monthPfx, fmtHShort } from '../lib/constants'
+import { MESES_PT, DIAS_SEMANA, TIPO_COLOR, TIPO_LABEL, monthPfx, fmtHShort, materiasDoMes, dateKey } from '../lib/constants'
 import type { DiaSemana, TipoBloco, StatusConteudo } from '../types'
 
 const DIAS_HEADER = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
@@ -49,7 +49,6 @@ export default function MensalPage() {
 
   const cells = getMonthDays(year, month)
 
-  function dateKey(d: Date) { return d.toISOString().slice(0, 10) }
   function dowIndex(d: Date) { return (d.getDay() + 6) % 7 }
 
   function dayStudiedMin(d: Date) {
@@ -121,7 +120,7 @@ export default function MensalPage() {
     if (!selectedDate) return
     const dow = dowIndex(selectedDate)
     const dia = DIAS_SEMANA[dow] as DiaSemana
-    const mat = materias.find(m => String(m.id) === slotForm.matId)
+    const mat = materiasDoMes(materias, monthPfx(selectedDate)).find(m => String(m.id) === slotForm.matId)
     const ctt = mat?.conteudos.find(c => String(c.id) === slotForm.cttId)
     const payload = {
       dia, tipo: slotForm.tipo,
@@ -292,7 +291,8 @@ export default function MensalPage() {
           const studied = dayStudiedMin(selectedDate)
           const qs = dayQuestoes(selectedDate)
           const metaTotal = slotMetaMin(dow)
-          const slotMatObj = materias.find(m => String(m.id) === slotForm.matId)
+          const daySlotMateriasList = materiasDoMes(materias, monthPfx(selectedDate))
+          const slotMatObj = daySlotMateriasList.find(m => String(m.id) === slotForm.matId)
 
           return (
             <div className="flex flex-col gap-4">
@@ -367,7 +367,7 @@ export default function MensalPage() {
                         <Select value={slotForm.matId}
                           onChange={e => setSlotForm(f => ({ ...f, matId: e.target.value, cttId: '' }))}>
                           <option value="">— sem matéria —</option>
-                          {materias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                          {daySlotMateriasList.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
                         </Select>
                       </FG>
                     </div>
