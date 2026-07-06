@@ -458,11 +458,19 @@ export default function TimerPage() {
             {!alertIsBreak && (
               <div className="mb-5 text-left flex flex-col gap-3">
                 <div>
-                  <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text2)' }}>Horário fim</label>
-                  <Input type="time" value={alertEndTime} onChange={e => setAlertEndTime(e.target.value)} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text2)' }}>Horário início</label>
+                      <Input type="time" value={alertStartTime} onChange={e => setAlertStartTime(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold uppercase tracking-wider mb-2 block" style={{ color: 'var(--text2)' }}>Horário fim</label>
+                      <Input type="time" value={alertEndTime} onChange={e => setAlertEndTime(e.target.value)} />
+                    </div>
+                  </div>
                   {alertStartTime && alertEndTime && (
                     <p className="text-xs mt-1.5" style={{ color: 'var(--text3)' }}>
-                      Início: {alertStartTime} · Duração: {Math.max(1, timeToMin(alertEndTime) - timeToMin(alertStartTime) + (timeToMin(alertEndTime) < timeToMin(alertStartTime) ? 1440 : 0))}min
+                      Duração: {Math.max(1, timeToMin(alertEndTime) - timeToMin(alertStartTime) + (timeToMin(alertEndTime) < timeToMin(alertStartTime) ? 1440 : 0))}min
                     </p>
                   )}
                 </div>
